@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Capelania Pro</title>
+    <!-- Mantemos o Tailwind CDN para simplicidade, mas o ideal seria postcss -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -24,24 +25,21 @@
         }
 
         /* 
-           ESTRATÉGIA DE IMPRESSÃO - CORREÇÃO DEFINITIVA
-           O portal precisa existir no DOM com dimensões reais para o Recharts calcular os SVGs.
-           Usamos opacity quase 0 e z-index negativo para escondê-lo na tela normal.
+           ESTRATÉGIA DE IMPRESSÃO
         */
         #print-portal {
-            position: absolute; /* Mudado de fixed para absolute para não travar scroll se necessário */
+            position: absolute;
             top: 0;
             left: 0;
             width: 210mm;
             min-height: 100vh;
-            z-index: -50; /* Atrás do conteúdo principal */
-            opacity: 0.01; /* Visível para o motor de renderização, invisível ao olho */
+            z-index: -50;
+            opacity: 0.01;
             pointer-events: none;
             background: white;
             overflow: visible;
         }
 
-        /* Preview Visual no Sistema (Modal) */
         .report-paper-preview {
             background: white;
             box-shadow: 0 40px 100px rgba(0,0,0,0.2);
@@ -53,7 +51,6 @@
             transform-origin: top center;
         }
 
-        /* REGRAS DE IMPRESSÃO (PDF) */
         @media print {
             @page {
                 size: A4;
@@ -68,16 +65,14 @@
                 overflow: visible !important;
             }
             
-            /* Oculta interface do app */
             #root, .print-hidden, header, footer, nav, aside, .fixed, .absolute, button, .modal-overlay, .animate-in {
                 display: none !important;
                 visibility: hidden !important;
                 opacity: 0 !important;
             }
 
-            /* Exibe o portal de impressão */
             #print-portal {
-                position: absolute !important; /* Absolute permite múltiplas páginas */
+                position: absolute !important;
                 top: 0 !important;
                 left: 0 !important;
                 width: 210mm !important;
@@ -96,7 +91,6 @@
                 color: black !important;
             }
 
-            /* Garante cores exatas (logos, gráficos, fundos) */
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
@@ -110,7 +104,6 @@
                 break-inside: avoid !important;
             }
             
-            /* Correção de imagens na impressão */
             img {
                 max-width: 100% !important;
                 page-break-inside: avoid;
@@ -139,12 +132,14 @@
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "recharts": "https://esm.sh/recharts@^3.6.0",
-    "react-dom": "https://esm.sh/react-dom@^19.2.3"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
   }
 }
 </script>
@@ -152,5 +147,7 @@
 <body>
     <div id="root"></div>
     <div id="print-portal"></div>
+    <!-- Entry point do Vite para React -->
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
