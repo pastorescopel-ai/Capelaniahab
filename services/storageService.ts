@@ -1,7 +1,7 @@
 
 import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig, ChangeRequest } from '../types';
+import { DEFAULT_APP_LOGO, DEFAULT_REPORT_LOGO } from '../constants';
 
-// URL da sua implantação do Apps Script (substitua pelo seu link final se necessário)
 const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbyrXCpJxxbzTxz7dGXRM_uv9edvM_SgE-xYHiXaF8GUghDbxyNTR_1xpS3LhEulFXa5/exec"; 
 
 const STORAGE_KEYS = {
@@ -15,7 +15,6 @@ const STORAGE_KEYS = {
   VISITS: 'cap_visits'
 };
 
-// Admin Master Nativo e Imutável
 const MASTER_ADMIN: User = { 
   id: 'master-admin', 
   name: 'Admin Master', 
@@ -29,7 +28,6 @@ const PULL_LOCK_MS = 5000;
 
 export const storageService = {
   init() {
-    // Garante que o Master Admin esteja presente localmente logo no início
     const users = this.getUsers();
     if (!users.find(u => u.email === MASTER_ADMIN.email)) {
       users.push(MASTER_ADMIN);
@@ -60,6 +58,16 @@ export const storageService = {
         if (cloudData.classes) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudData.classes));
         if (cloudData.groups) localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cloudData.groups));
         if (cloudData.visits) localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(cloudData.visits));
+        
+        // Sincronizar Configurações de Nuvem (exceto logos se estiverem vazias na nuvem)
+        if (cloudData.config) {
+            const current = this.getConfig();
+            const merged = { ...current, ...cloudData.config };
+            // Manter logos locais se a nuvem enviar vazias
+            if (!cloudData.config.appLogo) merged.appLogo = current.appLogo;
+            if (!cloudData.config.reportLogo) merged.reportLogo = current.reportLogo;
+            localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(merged));
+        }
         return true;
       }
       return false;
@@ -182,10 +190,25 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(data));
     await this.syncToCloud('VISITAS_COLABORADORES', visit);
   },
-  getConfig(): CloudConfig { return JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG) || `{"databaseURL":"${INTERNAL_CLOUD_URL}","spreadsheetId":"","customSectors":[],"customCollaborators":[]}`); },
+  getConfig(): CloudConfig { 
+    const stored = localStorage.getItem(STORAGE_KEYS.CONFIG);
+    const config: CloudConfig = stored ? JSON.parse(stored) : {
+        databaseURL: INTERNAL_CLOUD_URL,
+        spreadsheetId: '',
+        customSectors: [],
+        customCollaborators: []
+    };
+    
+    // Fallback para Logos Hardcoded se estiverem vazios
+    if (!config.appLogo) config.appLogo = DEFAULT_APP_LOGO;
+    if (!config.reportLogo) config.reportLogo = DEFAULT_REPORT_LOGO;
+    
+    return config;
+  },
   async saveConfig(config: CloudConfig) {
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-    await this.syncToCloud('CONFIGURACAO_SISTEMA', { ...config, appLogo: 'OMITIDO', reportLogo: 'OMITIDO' });
+    // Sincronizar com a nuvem (enviamos sem as logos base64 para evitar exceder limite de payload da planilha)
+    await this.syncToCloud('CONFIGURACAO_SISTEMA', { ...config, appLogo: '', reportLogo: '' });
   },
   getRequests(): ChangeRequest[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]'); },
   async addRequest(request: ChangeRequest) {
