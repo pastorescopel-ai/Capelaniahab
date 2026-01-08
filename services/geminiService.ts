@@ -1,5 +1,11 @@
-
 import { GoogleGenAI } from "@google/genai";
+
+// Declaração para satisfazer o TypeScript durante o build sem @types/node completo
+declare var process: {
+  env: {
+    API_KEY: string;
+  };
+};
 
 export const getChaplaincyInsights = async (dataSummary: string) => {
   // Mensagem de fallback padrão (usada em caso de erro ou cota excedida)
