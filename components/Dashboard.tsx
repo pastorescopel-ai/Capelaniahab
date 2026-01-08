@@ -29,19 +29,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const allGroups = storageService.getGroups();
 
   const filteredData = useMemo(() => {
-    let s = allStudies;
-    let v = allVisits;
-    let c = allClasses;
-    let g = allGroups;
-
-    if (user.role !== UserRole.ADMIN) {
-      s = s.filter(i => i.chaplainId === user.id);
-      v = v.filter(i => i.chaplainId === user.id);
-      c = c.filter(i => i.chaplainId === user.id);
-      g = g.filter(i => i.chaplainId === user.id);
-    }
+    // Agora filtramos SEMPRE pelo ID do usuário, independente de ser ADMIN ou não
+    const s = allStudies.filter(i => i.chaplainId === user.id);
+    const v = allVisits.filter(i => i.chaplainId === user.id);
+    const c = allClasses.filter(i => i.chaplainId === user.id);
+    const g = allGroups.filter(i => i.chaplainId === user.id);
+    
     return { s, v, c, g };
-  }, [user.id, user.role, allStudies, allVisits, allClasses, allGroups]);
+  }, [user.id, allStudies, allVisits, allClasses, allGroups]);
 
   useEffect(() => {
     const visitsToReturn = filteredData.v.filter(v => v.needsFollowUp);
@@ -69,12 +64,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     });
 
     if (!config.generalMessage && !localStorage.getItem('cap_cached_insight')) {
-      getChaplaincyInsights(`Atividades: ${totalActivitiesCount}, Alunos: ${uniqueStudentsCount}`).then(res => {
+      getChaplaincyInsights(`Atividades Individuais: ${totalActivitiesCount}, Alunos Individuais: ${uniqueStudentsCount}`).then(res => {
         setInsight(res);
         localStorage.setItem('cap_cached_insight', res);
       });
     }
-  }, []);
+  }, [totalActivitiesCount, uniqueStudentsCount]);
 
   const handleSaveGreeting = async () => {
     const newConfig = { ...config, dashboardGreeting: tempGreeting };
@@ -132,8 +127,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <div className="flex items-start gap-4">
             <span className="text-2xl">⚠️</span>
             <div>
-              <h4 className="font-black text-amber-800 uppercase tracking-tight">Retornos Pastorais Pendentes</h4>
-              <p className="text-sm text-amber-700 italic">Você marcou {pendingVisits.length} atendimentos para retorno. Confira no módulo Colaboradores.</p>
+              <h4 className="font-black text-amber-800 uppercase tracking-tight">Seus Retornos Pastorais Pendentes</h4>
+              <p className="text-sm text-amber-700 italic">Você possui {pendingVisits.length} atendimentos marcados para retorno individual. Confira no módulo Colaboradores.</p>
             </div>
           </div>
         </div>
@@ -141,10 +136,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Impacto Total', value: totalActivitiesCount, emoji: '📊', color: 'bg-primary/10 text-primary' },
-          { label: 'Indivíduos Únicos', value: uniqueStudentsCount, emoji: '👤', color: 'bg-amber-100 text-amber-600' },
-          { label: 'Classes Bíblicas', value: filteredData.c.length, emoji: '🎓', color: 'bg-purple-100 text-purple-600' },
-          { label: 'Estudos Bíblicos', value: filteredData.s.length, emoji: '📖', color: 'bg-blue-50 text-blue-600' },
+          { label: 'Meu Impacto', value: totalActivitiesCount, emoji: '📊', color: 'bg-primary/10 text-primary' },
+          { label: 'Meus Alunos', value: uniqueStudentsCount, emoji: '👤', color: 'bg-amber-100 text-amber-600' },
+          { label: 'Minhas Classes', value: filteredData.c.length, emoji: '🎓', color: 'bg-purple-100 text-purple-600' },
+          { label: 'Meus Estudos', value: filteredData.s.length, emoji: '📖', color: 'bg-blue-50 text-blue-600' },
         ].map((stat) => (
           <div key={stat.label} className="bg-white p-6 rounded-premium border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-lg transition-all">
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${stat.color}`}>{stat.emoji}</div>
@@ -158,7 +153,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-8 rounded-premium border border-slate-100 shadow-xl">
-           <h3 className="text-sm font-black uppercase mb-6">Volume de Atividades por Área</h3>
+           <h3 className="text-sm font-black uppercase mb-6">Minha Produtividade por Área</h3>
            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                  <BarChart data={[
@@ -182,7 +177,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">💡</span>
-                  <h3 className="text-lg font-black italic tracking-tight uppercase">Insight do Dia</h3>
+                  <h3 className="text-lg font-black italic tracking-tight uppercase">Insight Individual</h3>
                 </div>
                 {user.role === UserRole.ADMIN && !isEditingInsight && <button onClick={() => setIsEditingInsight(true)} className="text-[10px] font-black uppercase opacity-50 hover:opacity-100 transition-opacity">Editar</button>}
               </div>
@@ -207,7 +202,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               )}
             </div>
             <div className="mt-8 pt-6 border-t border-white/10 text-[9px] font-black uppercase opacity-50 tracking-widest relative z-10">
-              {config.generalMessage ? 'Mensagem da Direção' : 'Analista de Dados Gemini IA'}
+              {config.generalMessage ? 'Mensagem da Direção' : 'Seu Desempenho via Gemini IA'}
             </div>
         </div>
       </div>
