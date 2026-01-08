@@ -1,8 +1,7 @@
-
 import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig, ChangeRequest } from '../types';
 
-// ATENÇÃO: Substitua a URL abaixo pela URL da sua NOVA IMPLANTAÇÃO do Apps Script
-const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbzMLIaEf258zyRUm4ty_eWNl1VqwnfdZ0zw8OAc4LNj4xkKB6UcdCBrGKCXtuvd0P1bnQ/exec"; 
+// ATENÇÃO: Verifique se esta URL é a sua última "Implantação" no Apps Script
+const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbw0ub9hBJxSKEwHDKrZYxhvhAnGIr1zkk4DJMokboDZyjT3eSBIwUwr0jHZ-fZHAn9k6A/exec"; 
 
 const STORAGE_KEYS = {
   STUDIES: 'cap_studies',
@@ -163,7 +162,6 @@ export const storageService = {
     await this.syncToCloud('CONFIGURACAO_SISTEMA', { ...config, appLogo: 'OMITIDO', reportLogo: 'OMITIDO' });
   },
   getRequests(): ChangeRequest[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]'); },
-  // Fix: added missing addRequest method for ChangeRequests
   async addRequest(request: ChangeRequest) {
     const reqs = this.getRequests();
     reqs.push(request);
