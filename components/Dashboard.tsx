@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { storageService } from '../services/storageService';
 import { getChaplaincyInsights } from '../services/geminiService';
@@ -17,6 +16,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [config, setConfig] = useState<CloudConfig>(storageService.getConfig());
   const [tempMessage, setTempMessage] = useState(config.generalMessage || '');
   const [isLoadingInsight, setIsLoadingInsight] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SYNCING' | 'SUCCESS' | 'ERROR'>('IDLE');
   
   const hasAttemptedIA = useRef(false);
 
@@ -50,7 +50,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const totalActivitiesCount = filteredData.s.length + filteredData.v.length + filteredData.c.length + filteredData.g.length;
 
   useEffect(() => {
-    // PROTEÇÃO CONTRA ERRO 429 - CACHE AGRESSIVO
+    // Sincronização automática na abertura do dashboard
+    if (config.databaseURL) {
+      setSyncStatus('SYNCING');
+      storageService.pullFromCloud().then(ok => {
+        setSyncStatus(ok ? 'SUCCESS' : 'ERROR');
+        setTimeout(() => setSyncStatus('IDLE'), 3000);
+      });
+    }
+
     const CACHE_KEY = 'cap_cached_insight';
     const TIME_KEY = 'cap_insight_timestamp';
     const DATA_HASH_KEY = 'cap_insight_data_hash';
@@ -61,49 +69,33 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const cachedInsight = localStorage.getItem(CACHE_KEY);
     const lastDataHash = localStorage.getItem(DATA_HASH_KEY);
 
-    // Se o Admin definiu uma mensagem manual, não precisamos de IA
     if (config.generalMessage) return;
 
-    // Resumo simples para verificar se os dados mudaram
     const currentDataHash = `${totalActivitiesCount}-${uniqueStudentsCount}`;
-
-    // Condições para ignorar a chamada da API:
-    // 1. Já tentamos nesta carga de página
-    // 2. Os dados são os mesmos da última vez que geramos o insight
-    // 3. O cache ainda é recente (menos de 24h)
     const isDataSame = lastDataHash === currentDataHash;
     const isCacheRecent = (now - lastTime < TWENTY_FOUR_HOURS);
 
     if (hasAttemptedIA.current) return;
-
     if (cachedInsight && isDataSame && isCacheRecent) {
       setInsight(cachedInsight);
       hasAttemptedIA.current = true;
       return;
     }
 
-    // Só chama a API se os dados mudaram OU o cache expirou
     if (!hasAttemptedIA.current) {
       hasAttemptedIA.current = true;
       setIsLoadingInsight(true);
-      
-      const summary = `Atividades totais: ${totalActivitiesCount}, Alunos únicos: ${uniqueStudentsCount}, Estudos Bíblicos: ${filteredData.s.length}, Visitas a Colaboradores: ${filteredData.v.length}.`;
-      
+      const summary = `Atividades: ${totalActivitiesCount}, Alunos: ${uniqueStudentsCount}, Estudos: ${filteredData.s.length}, Visitas: ${filteredData.v.length}.`;
       getChaplaincyInsights(summary).then(res => {
         setInsight(res);
         localStorage.setItem(CACHE_KEY, res);
         localStorage.setItem(TIME_KEY, now.toString());
         localStorage.setItem(DATA_HASH_KEY, currentDataHash);
-      }).catch((err) => {
-        // Fallback amigável em caso de erro 429 (Cota Excedida)
-        console.warn("IA Quota Exceeded (429) or Network Error. Using fallback message.");
-        const fallback = cachedInsight || "A capelania é o coração pulsante do hospital. Seu trabalho de hoje é o consolo de amanhã. Continue firme!";
-        setInsight(fallback);
-      }).finally(() => {
-        setIsLoadingInsight(false);
-      });
+      }).catch(() => {
+        setInsight(cachedInsight || "Seu trabalho hoje é o consolo de amanhã.");
+      }).finally(() => setIsLoadingInsight(false));
     }
-  }, [totalActivitiesCount, uniqueStudentsCount, config.generalMessage, filteredData]);
+  }, [totalActivitiesCount, uniqueStudentsCount, config.generalMessage, filteredData, config.databaseURL]);
 
   const handleSaveMessage = () => {
     const newConfig = { ...config, generalMessage: tempMessage };
@@ -118,18 +110,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setConfig(newConfig);
     setTempMessage('');
     setIsEditingMessage(false);
-    // Limpar cache para forçar nova tentativa de IA se o admin quiser
     localStorage.removeItem('cap_cached_insight');
-    localStorage.removeItem('cap_insight_timestamp');
-    localStorage.removeItem('cap_insight_data_hash');
     hasAttemptedIA.current = false;
   };
 
   const stats = [
     { label: 'Impacto Total', value: totalActivitiesCount, emoji: '📊', color: 'bg-primary/10 text-primary' },
-    { label: 'Novos Alunos Únicos', value: uniqueStudentsCount, emoji: '👤', color: 'bg-amber-100 text-amber-600' },
-    { label: 'Educação Bíblica', value: filteredData.s.length + filteredData.c.length, emoji: '📖', color: 'bg-blue-50 text-blue-600' },
-    { label: 'Apoio a Equipes', value: filteredData.v.length, emoji: '🤝', color: 'bg-green-50 text-green-600' },
+    { label: 'Alunos Únicos', value: uniqueStudentsCount, emoji: '👤', color: 'bg-amber-100 text-amber-600' },
+    { label: 'Ensino Bíblico', value: filteredData.s.length + filteredData.c.length, emoji: '📖', color: 'bg-blue-50 text-blue-600' },
+    { label: 'Apoio Equipe', value: filteredData.v.length, emoji: '🤝', color: 'bg-green-50 text-green-600' },
   ];
 
   const chartData = [
@@ -145,14 +134,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 rounded-full border-4 border-white shadow-xl overflow-hidden bg-slate-200 flex items-center justify-center shrink-0">
             {user.photoUrl ? (
-              <img src={user.photoUrl} alt="Foto Perfil" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-3xl">👤</span>
-            )}
+              <img src={user.photoUrl} alt="Perfil" className="w-full h-full object-cover" />
+            ) : ( <span className="text-3xl">👤</span> )}
           </div>
           <div>
             <h2 className="text-3xl font-black text-slate-800 tracking-tight italic">Shalom, {user.name}!</h2>
-            <p className="text-slate-500 font-medium">Bem-vindo à sua central de gestão ministerial.</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`w-2 h-2 rounded-full ${syncStatus === 'SYNCING' ? 'bg-amber-400 animate-pulse' : syncStatus === 'SUCCESS' ? 'bg-success' : syncStatus === 'ERROR' ? 'bg-danger' : 'bg-slate-300'}`}></span>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {syncStatus === 'SYNCING' ? 'Sincronizando Nuvem...' : syncStatus === 'SUCCESS' ? 'Dados Online Atualizados' : syncStatus === 'ERROR' ? 'Erro na Conexão Cloud' : 'Sistema Pronto'}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -175,7 +167,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         <div className="lg:col-span-2 bg-white p-8 rounded-premium border border-slate-100 shadow-xl">
           <h3 className="text-lg font-black text-slate-800 mb-8 uppercase tracking-widest text-[11px] flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-primary"></span>
-            Produtividade por Categoria
+            Produtividade Ministerial
           </h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -208,7 +200,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <div className="flex items-center gap-3 mb-6">
               <span className="text-3xl">{config.generalMessage ? '📢' : '💡'}</span>
               <h3 className="text-xl font-black italic tracking-tight">
-                {config.generalMessage ? 'Mensagem da Direção' : 'IA Strategist'}
+                {config.generalMessage ? 'Mensagem Direção' : 'IA Strategist'}
               </h3>
             </div>
 
@@ -221,18 +213,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   onChange={(e) => setTempMessage(e.target.value)}
                 />
                 <div className="flex gap-3">
-                  <button 
-                    onClick={handleSaveMessage}
-                    className="flex-1 py-4 bg-white text-primary rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 transition-all"
-                  >
-                    Publicar
-                  </button>
-                  <button 
-                    onClick={handleClearMessage}
-                    className="px-6 py-4 bg-white/10 text-white rounded-2xl font-bold text-xs hover:bg-danger transition-all"
-                  >
-                    Remover
-                  </button>
+                  <button onClick={handleSaveMessage} className="flex-1 py-4 bg-white text-primary rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Publicar</button>
+                  <button onClick={handleClearMessage} className="px-6 py-4 bg-white/10 text-white rounded-2xl font-bold text-xs hover:bg-danger transition-all">Remover</button>
                 </div>
               </div>
             ) : (
@@ -250,16 +232,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
 
           <div className="mt-8 pt-8 border-t border-white/20 flex items-center justify-between">
-            <p className="text-[9px] uppercase font-black tracking-[0.3em] opacity-50">
+            <p className="text-[9px] font-black tracking-[0.3em] opacity-50 uppercase">
               {config.generalMessage ? `Admin Broadcast` : `Gemini AI Engine`}
             </p>
-            {!config.generalMessage && isLoadingInsight && (
-               <div className="flex gap-1">
-                  <span className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce"></span>
-                  <span className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce delay-75"></span>
-                  <span className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce delay-150"></span>
-               </div>
-            )}
           </div>
         </div>
       </div>

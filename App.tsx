@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -20,16 +19,32 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [user, setUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    storageService.init();
-    const currentUser = storageService.getCurrentUser();
-    setUser(currentUser);
-    setIsInitializing(false);
+    const initApp = async () => {
+      storageService.init();
+      const currentUser = storageService.getCurrentUser();
+      setUser(currentUser);
+      
+      if (currentUser) {
+        setIsSyncing(true);
+        // Tenta baixar os dados mais recentes da nuvem para que o usuário veja o que outros postaram
+        await storageService.pullFromCloud();
+        setIsSyncing(false);
+      }
+      
+      setIsInitializing(false);
+    };
+    
+    initApp();
   }, []);
 
-  const handleLogin = (loggedUser: User) => {
+  const handleLogin = async (loggedUser: User) => {
     setUser(loggedUser);
+    setIsSyncing(true);
+    await storageService.pullFromCloud();
+    setIsSyncing(false);
   };
 
   const handleLogout = () => {
@@ -72,13 +87,18 @@ const App: React.FC = () => {
       <Sidebar user={user} activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
       
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* TOP HEADER - ACESSO FÁCIL AO LOGOUT E PERFIL */}
+        {/* TOP HEADER */}
         <header className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-sm z-30">
           <div className="flex items-center gap-4">
             <div className="md:hidden w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xs">C</div>
-            <h1 className="hidden md:block text-sm font-black text-slate-400 uppercase tracking-widest">
-              {activeTab.replace(/([A-Z])/g, ' $1').trim()}
-            </h1>
+            <div className="flex flex-col">
+              <h1 className="hidden md:block text-sm font-black text-slate-400 uppercase tracking-widest">
+                {activeTab.replace(/([A-Z])/g, ' $1').trim()}
+              </h1>
+              {isSyncing && (
+                <span className="text-[10px] text-primary animate-pulse font-bold">Sincronizando dados...</span>
+              )}
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
@@ -110,7 +130,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* MOBILE NAVIGATION - SISTEMA E RELATÓRIOS (CONDICIONAL) */}
+      {/* MOBILE NAVS MANTIDAS IGUAIS */}
       <nav className="md:hidden fixed bottom-[88px] left-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-2xl flex items-center justify-around p-2 z-40">
         <button onClick={() => setActiveTab('dashboard')} className={`p-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-primary text-white scale-110 shadow-lg' : 'text-slate-400'}`}>
           <Icons.Dashboard />
@@ -136,7 +156,6 @@ const App: React.FC = () => {
         )}
       </nav>
 
-      {/* MOBILE FORM NAVIGATION - LANÇAMENTOS RÁPIDOS NO RODAPÉ */}
       <nav className="md:hidden fixed bottom-4 left-4 right-4 bg-slate-900 rounded-2xl shadow-2xl flex items-center justify-around p-2 z-50">
         <button onClick={() => setActiveTab('estudos')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === 'estudos' ? 'text-white bg-white/10' : 'text-white/40'}`}>
           <Icons.Study />

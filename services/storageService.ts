@@ -1,5 +1,10 @@
-
 import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig, ChangeRequest } from '../types';
+
+// =========================================================
+// CONFIGURAÇÃO INTERNA DO BACKEND (GOOGLE APPS SCRIPT)
+// COLE SUA URL GERADA NO GOOGLE APPS SCRIPT AQUI ABAIXO:
+// =========================================================
+const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbzMpLDFyRQcWB9GBacD-hbCIYgnMszfAuuTl5RvhOwmlXyXSauG4k8qV-4SHt09rRW_KA/exec"; 
 
 const STORAGE_KEYS = {
   STUDIES: 'cap_studies',
@@ -14,7 +19,6 @@ const STORAGE_KEYS = {
 
 const DEFAULT_USERS: User[] = [
   { id: '1', name: 'Admin Master', email: 'pastorescopel@gmail.com', password: 'admin', role: UserRole.ADMIN },
-  { id: '2', name: 'João Silva', email: 'joao@capelania.com', password: '123', role: UserRole.CHAPLAIN }
 ];
 
 export const storageService = {
@@ -22,41 +26,63 @@ export const storageService = {
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
     }
-    ['STUDIES', 'CLASSES', 'GROUPS', 'VISITS', 'REQUESTS'].forEach(key => {
-      const storageKey = STORAGE_KEYS[key as keyof typeof STORAGE_KEYS];
-      if (storageKey && !localStorage.getItem(storageKey)) {
-        localStorage.setItem(storageKey, JSON.stringify([]));
-      }
-    });
-    if (!localStorage.getItem(STORAGE_KEYS.CONFIG)) {
+    
+    // Garante que a URL interna seja aplicada à configuração local
+    const currentConfig = this.getConfig();
+    if (currentConfig.databaseURL !== INTERNAL_CLOUD_URL) {
       this.saveConfig({
-        databaseURL: '',
-        spreadsheetId: '',
-        customSectors: [],
-        customCollaborators: []
+        ...currentConfig,
+        databaseURL: INTERNAL_CLOUD_URL
       });
     }
   },
 
-  // Nova Função de Sincronização em Nuvem
+  async pullFromCloud(): Promise<boolean> {
+    const url = INTERNAL_CLOUD_URL;
+    if (!url || url.includes("SUA_URL")) return false;
+
+    try {
+      const response = await fetch(`${url}?action=fetchAll`);
+      if (!response.ok) return false;
+      const cloudData = await response.json();
+      
+      if (cloudData) {
+        if (cloudData.users && cloudData.users.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudData.users));
+        }
+        if (cloudData.studies) localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(cloudData.studies));
+        if (cloudData.classes) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudData.classes));
+        if (cloudData.groups) localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cloudData.groups));
+        if (cloudData.visits) localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(cloudData.visits));
+        if (cloudData.requests) localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(cloudData.requests));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Falha na sincronização Cloud:", e);
+      return false;
+    }
+  },
+
   async syncToCloud(type: string, data: any) {
-    const config = this.getConfig();
-    if (!config.databaseURL) return;
+    const url = INTERNAL_CLOUD_URL;
+    if (!url || url.includes("SUA_URL")) return;
 
     try {
       const user = this.getCurrentUser();
-      await fetch(config.databaseURL, {
+      await fetch(url, {
         method: 'POST',
-        mode: 'no-cors', // Necessário para Google Apps Script Web App
+        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: type,
-          userName: user?.name || 'Sistema',
+          timestamp: new Date().toISOString(),
+          executedBy: user?.name || 'Sistema',
           data: data
         })
       });
     } catch (e) {
-      console.warn("Sincronização falhou (provavelmente modo offline):", e);
+      console.warn("Erro ao enviar dados para nuvem:", e);
     }
   },
 
@@ -82,9 +108,9 @@ export const storageService = {
     return data ? JSON.parse(data) : null;
   },
 
-  updateCurrentUser(updatedUser: User) {
-    this.saveUser(updatedUser);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedUser));
+  updateCurrentUser(user: User) {
+    this.saveUser(user);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
   },
 
   getUsers(): User[] {
@@ -104,13 +130,7 @@ export const storageService = {
     const users = this.getUsers();
     const filtered = users.filter(u => u.id !== userId);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
-  },
-
-  // Fix: Added missing deleteStudy method to handle study record deletion
-  deleteStudy(id: string) {
-    const data = this.getStudies();
-    const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(filtered));
+    this.syncToCloud('DELETE_USER', { id: userId });
   },
 
   getStudies(): BiblicalStudy[] {
@@ -126,11 +146,11 @@ export const storageService = {
     this.syncToCloud('ESTUDOS_BIBLICOS', study);
   },
 
-  // Fix: Added missing deleteClass method to handle class record deletion
-  deleteClass(id: string) {
-    const data = this.getClasses();
+  deleteStudy(id: string) {
+    const data = this.getStudies();
     const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(filtered));
+    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(filtered));
+    this.syncToCloud('DELETE_STUDY', { id });
   },
 
   getClasses(): BiblicalClass[] {
@@ -146,11 +166,11 @@ export const storageService = {
     this.syncToCloud('CLASSES_BIBLICAS', cls);
   },
 
-  // Fix: Added missing deleteGroup method to handle small group record deletion
-  deleteGroup(id: string) {
-    const data = this.getGroups();
+  deleteClass(id: string) {
+    const data = this.getClasses();
     const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(filtered));
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(filtered));
+    this.syncToCloud('DELETE_CLASS', { id });
   },
 
   getGroups(): SmallGroup[] {
@@ -166,11 +186,11 @@ export const storageService = {
     this.syncToCloud('PEQUENOS_GRUPOS', group);
   },
 
-  // Fix: Added missing deleteVisit method to handle staff visit record deletion
-  deleteVisit(id: string) {
-    const data = this.getVisits();
+  deleteGroup(id: string) {
+    const data = this.getGroups();
     const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(filtered));
+    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(filtered));
+    this.syncToCloud('DELETE_GROUP', { id });
   },
 
   getVisits(): StaffVisit[] {
@@ -186,23 +206,22 @@ export const storageService = {
     this.syncToCloud('VISITAS_COLABORADORES', visit);
   },
 
+  deleteVisit(id: string) {
+    const data = this.getVisits();
+    const filtered = data.filter(i => i.id !== id);
+    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(filtered));
+    this.syncToCloud('DELETE_VISIT', { id });
+  },
+
   getConfig(): CloudConfig {
-    const defaultCfg: CloudConfig = { 
-      databaseURL: '', 
-      spreadsheetId: '', 
-      customSectors: [], 
-      customCollaborators: [] 
-    };
-    try {
-      return { ...defaultCfg, ...JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG) || '{}') };
-    } catch {
-      return defaultCfg;
-    }
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG) || `{"databaseURL":"${INTERNAL_CLOUD_URL}","spreadsheetId":"","customSectors":[],"customCollaborators":[]}`);
   },
 
   saveConfig(config: CloudConfig) {
-    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-    this.syncToCloud('CONFIGURACAO_SISTEMA', { ...config, appLogo: 'OMITIDO_BASE64', reportLogo: 'OMITIDO_BASE64' });
+    // Garante que a URL interna nunca seja sobrescrita por uma vazia
+    const finalConfig = { ...config, databaseURL: INTERNAL_CLOUD_URL };
+    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(finalConfig));
+    this.syncToCloud('CONFIGURACAO_SISTEMA', { ...finalConfig, appLogo: 'OMITIDO', reportLogo: 'OMITIDO' });
   },
 
   getRequests(): ChangeRequest[] {
@@ -222,36 +241,7 @@ export const storageService = {
     if (idx >= 0) {
       reqs[idx].status = status;
       localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(reqs));
-    }
-  },
-
-  exportAllData(): string {
-    const fullData = {
-      studies: this.getStudies(),
-      classes: this.getClasses(),
-      groups: this.getGroups(),
-      visits: this.getVisits(),
-      users: this.getUsers(),
-      config: this.getConfig(),
-      requests: this.getRequests()
-    };
-    return JSON.stringify(fullData);
-  },
-
-  importAllData(jsonData: string) {
-    try {
-      const parsed = JSON.parse(jsonData);
-      if (parsed.studies) localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(parsed.studies));
-      if (parsed.classes) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(parsed.classes));
-      if (parsed.groups) localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(parsed.groups));
-      if (parsed.visits) localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(parsed.visits));
-      if (parsed.users) localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(parsed.users));
-      if (parsed.config) localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(parsed.config));
-      if (parsed.requests) localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(parsed.requests));
-      return true;
-    } catch (e) {
-      console.error("Erro ao importar backup:", e);
-      return false;
+      this.syncToCloud('UPDATE_REQUEST', { id, status });
     }
   }
 };
