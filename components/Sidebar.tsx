@@ -16,7 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
   const isOnline = config.databaseURL && config.spreadsheetId;
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard, roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
+    { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard, roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.ASSISTANT] },
     { id: 'estudos', label: 'Estudos Bíblicos', icon: Icons.Study, roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
     { id: 'classes', label: 'Classe Bíblica', icon: Icons.Class, roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
     { id: 'pgs', label: 'Pequenos Grupos', icon: Icons.PG, roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
@@ -24,7 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
     { id: 'reports', label: 'Relatórios', icon: Icons.Reports, roles: [UserRole.ADMIN] },
     { id: 'admin', label: 'Administração', icon: Icons.Admin, roles: [UserRole.ADMIN] },
     { id: 'users', label: 'Usuários', icon: Icons.Users, roles: [UserRole.ADMIN] },
-    { id: 'profile', label: 'Meu Perfil', icon: () => <span className="text-xl">⚙️</span>, roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
+    { id: 'profile', label: 'Meu Perfil', icon: () => <span className="text-xl">⚙️</span>, roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.ASSISTANT] },
   ];
 
   const filteredItems = menuItems.filter(item => item.roles.includes(user.role));
@@ -32,15 +32,18 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
   return (
     <div className="hidden md:flex flex-col w-72 bg-primary h-screen border-r border-white/10 p-6 shadow-2xl text-white">
       <div className="flex items-center gap-3 mb-10 px-2">
-        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-lg shrink-0">
+        {/* Container da Logo sem Bordas e com preenchimento total */}
+        <div className="w-14 h-14 shrink-0 overflow-hidden flex items-center justify-center">
           {config.appLogo ? (
             <img src={config.appLogo} alt="Logo" className="w-full h-full object-contain" />
           ) : (
-            <span className="text-primary font-black text-2xl">C</span>
+            <div className="w-full h-full bg-white rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-primary font-black text-2xl">C</span>
+            </div>
           )}
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">CAPELANIA HAB</h1>
+          <h1 className="text-xl font-bold tracking-tight leading-tight">CAPELANIA HAB</h1>
           <div className="flex items-center gap-1">
             <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-success animate-pulse' : 'bg-warning'}`}></span>
             <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest text-nowrap">
@@ -89,7 +92,9 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-3 text-white/50 hover:text-white transition-all font-medium text-sm group"
         >
-          <Icons.Plus />
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
           Sair da Conta
         </button>
       </div>

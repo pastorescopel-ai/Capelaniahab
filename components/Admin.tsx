@@ -58,16 +58,16 @@ const Admin: React.FC = () => {
                 <div className="space-y-4 text-center">
                     <p className="text-[10px] font-black uppercase text-slate-400">Logo do App (Login/Sidebar)</p>
                     <div onClick={() => logoInputRef.current?.click()} className="h-40 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
-                        {config.appLogo ? <img src={config.appLogo} className="max-h-full object-contain p-4" /> : <span className="text-slate-300">Sem Logo</span>}
-                        <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-black uppercase">Alterar</div>
+                        {config.appLogo ? <img src={config.appLogo} className="w-full h-full object-cover" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Alterar Logo App</span>}
+                        <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-black uppercase">Trocar Imagem</div>
                     </div>
                     <input type="file" ref={logoInputRef} hidden accept="image/*" onChange={(e) => handleLogoUpload(e, 'app')} />
                 </div>
                 <div className="space-y-4 text-center">
                     <p className="text-[10px] font-black uppercase text-slate-400">Logo do Relatório (PDF)</p>
                     <div onClick={() => reportLogoInputRef.current?.click()} className="h-40 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
-                        {config.reportLogo ? <img src={config.reportLogo} className="max-h-full object-contain p-4" /> : <span className="text-slate-300">Sem Logo</span>}
-                        <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-black uppercase">Alterar</div>
+                        {config.reportLogo ? <img src={config.reportLogo} className="w-full h-full object-contain" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Alterar Logo PDF</span>}
+                        <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-black uppercase">Trocar Imagem</div>
                     </div>
                     <input type="file" ref={reportLogoInputRef} hidden accept="image/*" onChange={(e) => handleLogoUpload(e, 'report')} />
                 </div>

@@ -42,15 +42,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6 relative">
       <div className="w-full max-w-md bg-white rounded-premium shadow-2xl shadow-primary/10 p-10 space-y-8 animate-in fade-in zoom-in duration-500 relative z-10">
         <div className="text-center">
-          <div className="w-24 h-24 bg-white border border-slate-100 rounded-3xl flex items-center justify-center text-white font-bold text-4xl mx-auto mb-6 shadow-xl overflow-hidden relative">
+          {/* Logo do App no Login - Tamanho Normal e sem bordas se houver imagem */}
+          <div className="w-32 h-32 mx-auto mb-6 flex items-center justify-center relative">
             {config.appLogo ? (
-              <img src={config.appLogo} alt="Logo" className="w-full h-full object-contain p-2" />
+              <img src={config.appLogo} alt="Logo Oficial" className="w-full h-full object-contain" />
             ) : (
-              <div className="bg-primary w-full h-full flex items-center justify-center italic">C</div>
+              <div className="w-full h-full bg-primary rounded-3xl flex items-center justify-center italic text-white font-bold text-5xl shadow-xl">C</div>
             )}
             {isSyncing && (
-              <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <div className="absolute -bottom-2 -right-2 bg-white p-1 rounded-full shadow-lg">
+                <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
           </div>
@@ -91,7 +92,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             disabled={isSyncing}
             className="w-full py-5 bg-primary text-white rounded-premium font-black text-xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
           >
-            {isSyncing ? 'Conectando...' : 'Entrar'}
+            {isSyncing ? 'Sincronizando...' : 'Entrar'}
           </button>
           
           <div className="flex items-center justify-center gap-2">
@@ -102,8 +103,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       </div>
 
       <div className="absolute top-10 right-10 flex flex-col items-end opacity-10 pointer-events-none">
-          <p className="text-6xl font-black italic text-slate-200 uppercase leading-none">Gestão</p>
-          <p className="text-6xl font-black italic text-slate-200 uppercase leading-none">Capelania</p>
+          <p className="text-6xl font-black italic text-slate-200 uppercase leading-none text-right">GESTÃO<br/>CAPELANIA</p>
       </div>
     </div>
   );

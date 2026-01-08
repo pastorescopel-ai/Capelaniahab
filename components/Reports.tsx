@@ -50,17 +50,13 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   useEffect(() => { loadFilteredData(); }, [loadFilteredData]);
 
-  // Cálculo de Estudantes da Bíblia Únicos (Deduplicados)
   const uniqueStudentsTotal = useMemo(() => {
     const names = new Set<string>();
-    // Adiciona nomes de estudos individuais
     data.studies.forEach(s => s.patientName && names.add(s.patientName.trim().toLowerCase()));
-    // Adiciona nomes das listas de classes bíblicas
     data.classes.forEach(c => c.students.forEach(st => st && names.add(st.trim().toLowerCase())));
     return names.size;
   }, [data.studies, data.classes]);
 
-  // Gráfico Consolidado por Capelão
   const chaplainPerformanceData = useMemo(() => {
     return allUsers.map(u => {
       const uStudies = data.studies.filter(s => s.chaplainId === u.id).length;
@@ -82,8 +78,15 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const ReportContent = () => (
     <div className="bg-white p-10 text-slate-900 border-[10px] border-slate-50 min-h-screen">
       <div className="flex items-center justify-between border-b-4 border-primary pb-6 mb-8">
-        <div className="flex items-center gap-6">
-          {config.reportLogo ? <img src={config.reportLogo} className="h-20 w-auto object-contain" /> : <div className="w-16 h-16 bg-primary text-white font-black flex items-center justify-center rounded-2xl text-2xl italic">C</div>}
+        <div className="flex items-center gap-8">
+          {/* Logo do Relatório - Tamanho Amplo e Proporcional */}
+          <div className="h-24 min-w-[120px] flex items-center justify-center">
+            {config.reportLogo ? (
+              <img src={config.reportLogo} alt="Logo de Relatórios" className="h-full w-auto object-contain" />
+            ) : (
+              <div className="h-full w-24 bg-primary text-white font-black flex items-center justify-center rounded-2xl text-4xl italic shadow-lg">C</div>
+            )}
+          </div>
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900">Relatório de Atividades</h1>
             <p className="text-primary font-bold uppercase tracking-widest text-xs">Gestão de Capelania e Ensino Bíblico</p>
@@ -91,7 +94,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estudantes Únicos (Soma Total)</p>
-          <p className="text-4xl font-black text-slate-900">{uniqueStudentsTotal}</p>
+          <p className="text-5xl font-black text-slate-900 leading-none">{uniqueStudentsTotal}</p>
         </div>
       </div>
 
@@ -103,9 +106,9 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           { label: 'Apoio Colaborador', val: data.visits.length, color: 'text-green-600', emoji: '🤝' }
         ].map((card, i) => (
           <div key={i} className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex flex-col items-center text-center">
-            <span className="text-xl mb-1">{card.emoji}</span>
+            <span className="text-2xl mb-1">{card.emoji}</span>
             <p className="text-[8px] font-black text-slate-400 uppercase mb-1">{card.label}</p>
-            <p className={`text-2xl font-black ${card.color}`}>{card.val}</p>
+            <p className={`text-3xl font-black ${card.color}`}>{card.val}</p>
           </div>
         ))}
       </div>
@@ -131,7 +134,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
          </section>
       </div>
 
-      <div className="mt-20 flex justify-around border-t border-slate-100 pt-10">
+      <div className="mt-20 flex justify-around border-t border-slate-200 pt-10">
          <div className="text-center w-64 border-t border-slate-900 pt-2"><p className="text-[10px] font-black uppercase tracking-widest">Coordenação de Capelania</p></div>
          <div className="text-center w-64 border-t border-slate-900 pt-2"><p className="text-[10px] font-black uppercase tracking-widest">Direção Geral</p></div>
       </div>
@@ -142,8 +145,8 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     <div className="space-y-10 pb-40">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 print:hidden">
         <div>
-          <h2 className="text-4xl font-black text-slate-800 tracking-tight italic">Relatórios do Administrador</h2>
-          <p className="text-slate-500 font-medium italic">Dados integrados e consolidados da unidade hospitalar.</p>
+          <h2 className="text-4xl font-black text-slate-800 tracking-tight italic">Relatórios Consolidados</h2>
+          <p className="text-slate-500 font-medium italic">Dados integrados para suporte à tomada de decisão.</p>
         </div>
         <div className="flex flex-wrap items-end gap-4 bg-white p-6 rounded-premium border border-slate-100 shadow-xl">
            <div className="space-y-1">
@@ -166,17 +169,17 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
       <div className="flex justify-center print:hidden">
         <button onClick={() => setShowPreview(true)} className="px-20 py-6 bg-slate-900 text-white rounded-premium font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-2xl">
-           VISUALIZAR PARA PDF 📄
+           GERAR DOCUMENTO PARA PDF 📄
         </button>
       </div>
 
       {showPreview && (
         <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-[1000] overflow-y-auto p-4 md:p-12 flex flex-col items-center">
           <div className="w-full max-w-[21cm] flex items-center justify-between mb-8 bg-white/10 p-6 rounded-3xl border border-white/10 shadow-3xl">
-             <button onClick={() => setShowPreview(false)} className="px-8 py-4 bg-white/10 text-white rounded-xl font-black text-xs uppercase tracking-widest">Voltar</button>
+             <button onClick={() => setShowPreview(false)} className="px-8 py-4 bg-white/10 text-white rounded-xl font-black text-xs uppercase tracking-widest">Fechar Visualização</button>
              <button onClick={() => window.print()} className="px-14 py-4 bg-primary text-white rounded-xl font-black text-sm shadow-3xl uppercase tracking-widest">Imprimir / Salvar PDF 📄</button>
           </div>
-          <div className="bg-white shadow-2xl scale-90 md:scale-100 origin-top overflow-visible">
+          <div className="bg-white shadow-2xl scale-90 md:scale-100 origin-top overflow-visible print:scale-100">
             <ReportContent />
           </div>
         </div>
