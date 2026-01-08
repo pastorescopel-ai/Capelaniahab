@@ -26,6 +26,7 @@ const Admin: React.FC = () => {
   };
 
   const handleSaveConfig = () => {
+    // Importação em massa: quebra por linha e remove vazios
     const sectors = sectorInput.split('\n').map(s => s.trim()).filter(s => s !== '');
     const collabs = collabInput.split('\n').map(c => c.trim()).filter(c => c !== '');
     
@@ -39,19 +40,24 @@ const Admin: React.FC = () => {
 
   return (
     <div className="space-y-10 pb-40 animate-in fade-in duration-500">
-      <div>
-        <h2 className="text-4xl font-black text-slate-800 tracking-tight italic">Administração do Sistema</h2>
-        <p className="text-slate-500 font-medium italic">Personalização de interface, logos e listas de apoio.</p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h2 className="text-4xl font-black text-slate-800 tracking-tight italic">Administração do Sistema</h2>
+          <p className="text-slate-500 font-medium italic">Configuração de interface, logos e listas de apoio.</p>
+        </div>
+        <button onClick={handleSaveConfig} disabled={isSyncing} className="px-10 py-5 bg-primary text-white rounded-premium font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
+           {isSyncing ? 'Sincronizando...' : 'Salvar Alterações Online'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Logos Section */}
+        {/* Identidade Visual */}
         <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl space-y-8">
             <h3 className="text-xl font-black text-slate-800 border-b pb-4 flex items-center gap-2">🖼️ Identidade Visual</h3>
             <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4 text-center">
-                    <p className="text-[10px] font-black uppercase text-slate-400">Logo do Sistema (Login/Sidebar)</p>
-                    <div onClick={() => logoInputRef.current?.click()} className="h-32 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
+                    <p className="text-[10px] font-black uppercase text-slate-400">Logo do App (Login/Sidebar)</p>
+                    <div onClick={() => logoInputRef.current?.click()} className="h-40 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
                         {config.appLogo ? <img src={config.appLogo} className="max-h-full object-contain p-4" /> : <span className="text-slate-300">Sem Logo</span>}
                         <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-black uppercase">Alterar</div>
                     </div>
@@ -59,7 +65,7 @@ const Admin: React.FC = () => {
                 </div>
                 <div className="space-y-4 text-center">
                     <p className="text-[10px] font-black uppercase text-slate-400">Logo do Relatório (PDF)</p>
-                    <div onClick={() => reportLogoInputRef.current?.click()} className="h-32 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
+                    <div onClick={() => reportLogoInputRef.current?.click()} className="h-40 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
                         {config.reportLogo ? <img src={config.reportLogo} className="max-h-full object-contain p-4" /> : <span className="text-slate-300">Sem Logo</span>}
                         <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-black uppercase">Alterar</div>
                     </div>
@@ -68,36 +74,38 @@ const Admin: React.FC = () => {
             </div>
         </div>
 
-        {/* Sync Section */}
-        <div className="bg-primary p-8 rounded-premium text-white shadow-2xl flex flex-col justify-center text-center space-y-4">
-            <h3 className="text-2xl font-black italic">Sincronização Online</h3>
-            <p className="text-white/70 text-sm">Todas as alterações de logo e listas são enviadas diretamente para a sua planilha Google.</p>
-            <button onClick={handleSaveConfig} disabled={isSyncing} className="bg-white text-primary py-4 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
-               {isSyncing ? 'Sincronizando...' : 'Salvar Alterações na Nuvem'}
-            </button>
+        {/* Informação Geral */}
+        <div className="bg-slate-900 p-8 rounded-premium text-white shadow-2xl flex flex-col justify-center space-y-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl italic">CLOUD</div>
+            <h3 className="text-2xl font-black italic relative z-10">Conexão com a Nuvem</h3>
+            <p className="text-white/60 text-sm relative z-10">Seu sistema está sincronizado com a Planilha Google. Todas as listas importadas abaixo e os logos aparecerão para todos os membros da equipe instantaneamente após salvar.</p>
+            <div className="p-4 bg-white/10 rounded-2xl border border-white/10 space-y-2">
+                <p className="text-[10px] font-black uppercase text-white/40">URL do Banco de Dados</p>
+                <p className="text-xs font-mono break-all opacity-80">{config.databaseURL}</p>
+            </div>
         </div>
       </div>
 
-      {/* Bulk Import Lists */}
+      {/* Importação de Listas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl space-y-4">
-            <h3 className="text-xl font-black text-slate-800">🏥 Importar Setores</h3>
-            <p className="text-xs text-slate-400 font-bold uppercase italic">Cole a lista do Excel ou Word abaixo (um por linha):</p>
+            <h3 className="text-xl font-black text-slate-800">🏥 Importar Setores (Massa)</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase italic">Cole uma coluna do Excel ou Word (um por linha):</p>
             <textarea 
-                className="w-full h-64 p-4 bg-slate-50 border rounded-2xl outline-none font-bold text-slate-600 focus:ring-4 focus:ring-primary/10"
+                className="w-full h-80 p-6 bg-slate-50 border rounded-3xl outline-none font-bold text-slate-600 focus:ring-4 focus:ring-primary/10 transition-all no-scrollbar"
                 value={sectorInput}
                 onChange={e => setSectorInput(e.target.value)}
-                placeholder="Ex:&#10;UTI Adulto&#10;Pediatria&#10;Pronto Socorro"
+                placeholder="Ex:&#10;UTI Adulto&#10;Pediatria&#10;Pronto Socorro&#10;Administrativo"
             />
         </div>
         <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl space-y-4">
-            <h3 className="text-xl font-black text-slate-800">👥 Importar Colaboradores</h3>
-            <p className="text-xs text-slate-400 font-bold uppercase italic">Cole a lista do Excel ou Word abaixo (um por linha):</p>
+            <h3 className="text-xl font-black text-slate-800">👥 Importar Colaboradores (Massa)</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase italic">Cole uma coluna do Excel ou Word (um por linha):</p>
             <textarea 
-                className="w-full h-64 p-4 bg-slate-50 border rounded-2xl outline-none font-bold text-slate-600 focus:ring-4 focus:ring-primary/10"
+                className="w-full h-80 p-6 bg-slate-50 border rounded-3xl outline-none font-bold text-slate-600 focus:ring-4 focus:ring-primary/10 transition-all no-scrollbar"
                 value={collabInput}
                 onChange={e => setCollabInput(e.target.value)}
-                placeholder="Ex:&#10;Carlos Silva&#10;Maria Oliveira&#10;José Santos"
+                placeholder="Ex:&#10;Dr. Ricardo Silva&#10;Enf. Maria Oliveira&#10;José dos Santos"
             />
         </div>
       </div>

@@ -81,6 +81,7 @@ export interface CloudConfig {
   customSectors: string[];
   customCollaborators: string[];
   generalMessage?: string;
+  dashboardGreeting?: string;
 }
 
 export interface ChangeRequest {
