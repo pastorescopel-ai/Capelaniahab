@@ -3,7 +3,7 @@ import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, C
 // =========================================================
 // CONFIGURAÇÃO INTERNA DO BACKEND (GOOGLE APPS SCRIPT)
 // =========================================================
-const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbxsJ3ldJj41kNOnMTxDeXTES0ZC29i89hdeN3y92zT77Eb5KPUU_RPkGIdUCFpoWmee/exec"; 
+const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbyPTDlBXhu6puvOBueqBfnBOUaD4u5C_PmjOBuXf7AuAAGooSYQRCxreREFxOFsrce7bQ/exec"; 
 
 const STORAGE_KEYS = {
   STUDIES: 'cap_studies',
@@ -21,7 +21,7 @@ const DEFAULT_USERS: User[] = [
 ];
 
 let lastWriteTimestamp = 0;
-const PULL_LOCK_MS = 8000; // Aumentado para 8s para garantir que o Google apague a linha
+const PULL_LOCK_MS = 10000; // 10 segundos para dar tempo do Google processar a deleção física
 
 export const storageService = {
   init() {
@@ -38,8 +38,9 @@ export const storageService = {
     const url = INTERNAL_CLOUD_URL;
     if (!url || url.includes("SUA_URL")) return false;
 
-    // Se houve gravação/exclusão recente, não faz pull para não trazer o dado "morto" de volta
+    // Se houve gravação/exclusão recente, ignora o pull temporariamente
     if (Date.now() - lastWriteTimestamp < PULL_LOCK_MS) {
+      console.log("Pull bloqueado: aguardando processamento da nuvem...");
       return true; 
     }
 
@@ -71,8 +72,10 @@ export const storageService = {
 
     try {
       const user = this.getCurrentUser();
+      // Usamos text/plain para evitar problemas de pre-flight CORS no Google Apps Script
       await fetch(url, {
         method: 'POST',
+        mode: 'no-cors', // Essencial para Vercel -> Google Apps Script (302 redirect)
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           type: type,
@@ -86,13 +89,13 @@ export const storageService = {
     }
   },
 
-  // --- MÉTODOS DE EXCLUSÃO CORRIGIDOS ---
+  // --- MÉTODOS DE EXCLUSÃO ---
   
   async deleteStudy(id: string) {
     const data = this.getStudies();
     const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(filtered)); // Deleta local primeiro
-    await this.syncToCloud('DELETE_STUDY', { id }); // Envia comando de delete
+    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(filtered)); 
+    await this.syncToCloud('DELETE_STUDY', { id });
   },
 
   async deleteClass(id: string) {
