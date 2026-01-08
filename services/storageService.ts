@@ -2,7 +2,98 @@
 import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig, ChangeRequest } from '../types';
 
 // URL da sua nova implantação do Apps Script
-const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbw0ub9hBJxSKEwHDKrZYxhvhAnGIr1zkk4DJMokboDZyjT3eSBIwUwr0jHZ-fZHAn9k6A/exec"; 
+const INTERNAL_CLOUD_URL = "function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var body = JSON.parse(e.postData.contents);
+  var type = body.type;
+  var data = body.data;
+
+  // Mapeamento rigoroso para evitar abas fantasmas
+  var sheetMapping = {
+    'ESTUDOS_BIBLICOS': 'ESTUDOS_BIBLICOS',
+    'DELETE_STUDY': 'ESTUDOS_BIBLICOS',
+    'CLASSES_BIBLICAS': 'CLASSES_BIBLICAS',
+    'DELETE_CLASS': 'CLASSES_BIBLICAS',
+    'PEQUENOS_GRUPOS': 'PEQUENOS_GRUPOS',
+    'DELETE_GROUP': 'PEQUENOS_GRUPOS',
+    'VISITAS_COLABORADORES': 'VISITAS_COLABORADORES',
+    'DELETE_VISIT': 'VISITAS_COLABORADORES',
+    'USUARIOS': 'USUARIOS',
+    'DELETE_USER': 'USUARIOS',
+    'CONFIGURACAO_SISTEMA': 'CONFIGURACAO_SISTEMA'
+  };
+
+  var targetSheetName = sheetMapping[type];
+  if (!targetSheetName) {
+    return ContentService.createTextOutput("Tipo inválido ignorado").setMimeType(ContentService.MimeType.TEXT);
+  }
+
+  // Se for exclusão
+  if (type.indexOf('DELETE_') === 0) {
+    var sheet = ss.getSheetByName(targetSheetName);
+    if (sheet) {
+      var values = sheet.getDataRange().getValues();
+      for (var i = values.length - 1; i >= 1; i--) {
+        if (values[i][0] == data.id) {
+          sheet.deleteRow(i + 1);
+        }
+      }
+    }
+    return ContentService.createTextOutput("Excluído").setMimeType(ContentService.MimeType.TEXT);
+  }
+
+  // Se for Gravação/Edição
+  var sheet = ss.getSheetByName(targetSheetName) || ss.insertSheet(targetSheetName);
+  
+  // Se a aba acabou de ser criada, adiciona cabeçalho
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["ID", "TIMESTAMP", "JSON_DATA", "EXECUTADO_POR"]);
+  }
+
+  var rows = sheet.getDataRange().getValues();
+  var found = false;
+  var rowData = [data.id, new Date().toISOString(), JSON.stringify(data), body.executedBy || "Sistema"];
+
+  for (var j = 1; j < rows.length; j++) {
+    if (rows[j][0] == data.id) {
+      sheet.getRange(j + 1, 1, 1, 4).setValues([rowData]);
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    sheet.appendRow(rowData);
+  }
+
+  return ContentService.createTextOutput("Sucesso").setMimeType(ContentService.MimeType.TEXT);
+}
+
+function doGet(e) {
+  var action = e.parameter.action;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (action === "fetchAll") {
+    var results = {
+      studies: getSheetData(ss, "ESTUDOS_BIBLICOS"),
+      classes: getSheetData(ss, "CLASSES_BIBLICAS"),
+      groups: getSheetData(ss, "PEQUENOS_GRUPOS"),
+      visits: getSheetData(ss, "VISITAS_COLABORADORES"),
+      users: getSheetData(ss, "USUARIOS")
+    };
+    return ContentService.createTextOutput(JSON.stringify(results)).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function getSheetData(ss, name) {
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) return [];
+  var rows = sheet.getDataRange().getValues();
+  var data = [];
+  for (var i = 1; i < rows.length; i++) {
+    try { data.push(JSON.parse(rows[i][2])); } catch(e) {}
+  }
+  return data;
+}"; 
 
 const STORAGE_KEYS = {
   STUDIES: 'cap_studies',
