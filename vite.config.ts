@@ -9,6 +9,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false
+    sourcemap: false,
+    chunkSizeWarningLimit: 2000, // Aumenta o limite para 2MB para evitar o erro no Vercel
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Move todas as bibliotecas externas para um arquivo separado (vendor)
+            return 'vendor';
+          }
+        },
+      },
+    },
   }
 });
