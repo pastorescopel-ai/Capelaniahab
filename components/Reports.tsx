@@ -100,14 +100,16 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     if (isPrinting) return;
     setIsPrinting(true);
     
-    // Aumentamos o delay para 1000ms para garantir que o navegador
-    // tenha tempo de renderizar os SVGs dos gráficos no #print-portal
-    // que está visualmente oculto (opacity: 0.01) mas presente no DOM.
+    // O setTimeout é crucial aqui. Ele libera a thread do JS para que 
+    // o navegador possa renderizar os SVGs dentro do portal (que agora está no DOM, embora invisível)
+    // antes de congelar a tela com o diálogo de impressão.
     setTimeout(() => {
       window.print();
-      // Pequeno delay para resetar o estado após o comando de impressão
-      setTimeout(() => setIsPrinting(false), 500);
-    }, 1000);
+      // Reseta o estado apenas depois que o usuário fecha o diálogo de impressão
+      // (na verdade o script continua rodando em background em alguns browsers, 
+      // mas o delay garante que a UI não "pisque").
+      setTimeout(() => setIsPrinting(false), 1000);
+    }, 800);
   };
 
   const ReportContent = ({ isPrint = false }: { isPrint?: boolean }) => (
@@ -120,7 +122,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           {config.reportLogo ? (
             <img 
               src={config.reportLogo} 
-              // Aumentamos a altura fixa para garantir boa resolução na impressão
               className="h-24 w-auto object-contain" 
               alt="Logo" 
               style={{ maxHeight: '96px', width: 'auto' }}
