@@ -12,11 +12,13 @@ interface StaffVisitFormProps {
 const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
   const config = storageService.getConfig();
   
-  const MASTER_STAFF_LIST = useMemo(() => [
-    "Ana Oliveira", "Carlos Santos", "Daniel Lima", "Eduarda Souza", 
-    "Fábio Silva", "Gisela Pereira", "Heitor Gomes", "Isabela Rocha",
-    ...(config.customCollaborators || [])
-  ], [config.customCollaborators]);
+  const MASTER_STAFF_LIST = useMemo(() => {
+    const base = [
+      "Ana Oliveira", "Carlos Santos", "Daniel Lima", "Eduarda Souza", 
+      "Fábio Silva", "Gisela Pereira", "Heitor Gomes", "Isabela Rocha"
+    ];
+    return Array.from(new Set([...base, ...(config.customCollaborators || [])])).sort();
+  }, [config.customCollaborators]);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -31,14 +33,15 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const filteredStaff = MASTER_STAFF_LIST.filter(s => 
-    s.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStaff = useMemo(() => 
+    MASTER_STAFF_LIST.filter(s => 
+      s.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [searchTerm, MASTER_STAFF_LIST]
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Usa o nome selecionado OU o que o usuário digitou (novo nome)
     const finalStaffName = formData.staffName || searchTerm.trim();
     
     if (!finalStaffName) {
@@ -46,14 +49,13 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
       return;
     }
 
-    // Lógica para Salvar Novo Colaborador Automaticamente
+    // Se o nome não existe, salva na lista customizada
     if (!MASTER_STAFF_LIST.some(s => s.toLowerCase() === finalStaffName.toLowerCase())) {
-      const confirmAdd = window.confirm(`"${finalStaffName}" não está na lista. Deseja adicionar este colaborador permanentemente ao sistema?`);
+      const confirmAdd = window.confirm(`"${finalStaffName}" é um novo colaborador. Deseja salvá-lo na lista permanente do sistema?`);
       if (confirmAdd) {
         const currentConfig = storageService.getConfig();
-        const updatedCollaborators = [...(currentConfig.customCollaborators || []), finalStaffName];
-        const newConfig = { ...currentConfig, customCollaborators: updatedCollaborators };
-        storageService.saveConfig(newConfig);
+        const updatedCollaborators = Array.from(new Set([...(currentConfig.customCollaborators || []), finalStaffName]));
+        storageService.saveConfig({ ...currentConfig, customCollaborators: updatedCollaborators });
       }
     }
 
@@ -63,7 +65,7 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
       id: Math.random().toString(36).substr(2, 9),
       year: dateObj.getFullYear(),
       month: dateObj.getMonth() + 1,
-      staffName: finalStaffName, // Garante que usa o nome final
+      staffName: finalStaffName,
       chaplainId: user.id,
       createdAt: new Date().toISOString()
     } as StaffVisit;
@@ -71,7 +73,6 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
     storageService.saveVisit(visit);
     alert("Visita registrada com sucesso!");
 
-    // Limpar campos mas manter na página
     setSearchTerm('');
     setFormData({
       ...formData,
@@ -87,16 +88,16 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
     <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
       <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
         <span className="p-2 bg-primary/10 text-primary rounded-xl text-xl">🤝</span>
-        Lançamento de Visita a Colaborador
+        Visita a Colaborador
       </h2>
       
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-slate-600">Data da Visita*</label>
+          <label className="block text-sm font-semibold text-slate-600">Data*</label>
           <input 
             type="date" 
             required
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none font-bold"
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold"
             value={formData.date}
             onChange={(e) => setFormData({...formData, date: e.target.value})}
           />
@@ -106,7 +107,7 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
           <label className="block text-sm font-semibold text-slate-600">Setor*</label>
           <select 
             required
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none font-bold"
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold"
             value={formData.sector}
             onChange={(e) => setFormData({...formData, sector: e.target.value})}
           >
@@ -116,39 +117,34 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
         </div>
 
         <div className="space-y-2 relative">
-          <label className="block text-sm font-semibold text-slate-600">Colaborador Atendido*</label>
+          <label className="block text-sm font-semibold text-slate-600">Colaborador*</label>
           <div className="relative">
             <input 
               type="text" 
               required
-              placeholder="Busque ou digite um novo nome..."
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none font-bold"
+              placeholder="Digite para buscar ou adicionar..."
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold pr-12"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setFormData({...formData, staffName: ''}); // Limpa seleção anterior se digitar
+                setFormData({...formData, staffName: ''});
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             />
-            {/* Indicador visual se é um nome novo */}
-            {searchTerm && !filteredStaff.some(s => s.toLowerCase() === searchTerm.toLowerCase()) && (
-              <div className="absolute right-4 top-3.5">
-                <span className="text-[10px] font-black bg-success/10 text-success px-2 py-1 rounded-md uppercase tracking-widest">
-                  Novo
-                </span>
-              </div>
+            {searchTerm && !MASTER_STAFF_LIST.some(s => s.toLowerCase() === searchTerm.toLowerCase()) && (
+              <span className="absolute right-4 top-3.5 text-[9px] font-black bg-success/10 text-success px-2 py-1 rounded uppercase tracking-widest">Novo</span>
             )}
           </div>
           
           {showSuggestions && filteredStaff.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-xl max-h-40 overflow-y-auto no-scrollbar">
+            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-2xl max-h-40 overflow-y-auto no-scrollbar">
               {filteredStaff.map(s => (
                 <button
                   key={s}
                   type="button"
-                  className="w-full text-left px-4 py-3 hover:bg-slate-50 text-sm font-medium border-b border-slate-50 last:border-none flex items-center justify-between group"
+                  className="w-full text-left px-4 py-3 hover:bg-slate-50 text-sm font-medium border-b border-slate-50 last:border-none"
                   onClick={() => {
                     setSearchTerm(s);
                     setFormData({...formData, staffName: s});
@@ -156,7 +152,6 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
                   }}
                 >
                   {s}
-                  <span className="opacity-0 group-hover:opacity-100 text-primary text-xs">Selecionar</span>
                 </button>
               ))}
             </div>
@@ -164,10 +159,10 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-slate-600">Motivo do Atendimento*</label>
+          <label className="block text-sm font-semibold text-slate-600">Motivo*</label>
           <select 
             required
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none font-bold"
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold"
             value={formData.reason}
             onChange={(e) => setFormData({...formData, reason: e.target.value})}
           >
@@ -179,11 +174,11 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
           <input 
             type="checkbox" 
             id="followup-visit"
-            className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"
+            className="w-5 h-5 rounded text-primary"
             checked={formData.needsFollowUp}
             onChange={(e) => setFormData({...formData, needsFollowUp: e.target.checked})}
           />
-          <label htmlFor="followup-visit" className="text-sm font-semibold text-slate-700 cursor-pointer select-none">
+          <label htmlFor="followup-visit" className="text-sm font-semibold text-slate-700 cursor-pointer">
             Necessita Retorno / Acompanhamento?
           </label>
         </div>
@@ -192,10 +187,10 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
           <label className="block text-sm font-semibold text-slate-600">Observações</label>
           <textarea 
             rows={3}
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none resize-none"
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none resize-none"
             value={formData.observations}
             onChange={(e) => setFormData({...formData, observations: e.target.value})}
-            placeholder="Detalhes sobre o atendimento..."
+            placeholder="Relate o atendimento..."
           />
         </div>
 
@@ -203,7 +198,7 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
           type="submit"
           className="md:col-span-2 py-5 bg-primary text-white rounded-premium font-black text-lg shadow-xl shadow-primary/20 hover:scale-[1.01] transition-all"
         >
-          Salvar Visita do Dia
+          Salvar Visita
         </button>
       </form>
     </div>
