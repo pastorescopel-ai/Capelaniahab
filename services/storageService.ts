@@ -2,9 +2,8 @@ import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, C
 
 // =========================================================
 // CONFIGURAÇÃO INTERNA DO BACKEND (GOOGLE APPS SCRIPT)
-// COLE SUA URL GERADA NO GOOGLE APPS SCRIPT AQUI ABAIXO:
 // =========================================================
-const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbzMpLDFyRQcWB9GBacD-hbCIYgnMszfAuuTl5RvhOwmlXyXSauG4k8qV-4SHt09rRW_KA/exec"; 
+const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbxsJ3ldJj41kNOnMTxDeXTES0ZC29i89hdeN3y92zT77Eb5KPUU_RPkGIdUCFpoWmee/exec"; 
 
 const STORAGE_KEYS = {
   STUDIES: 'cap_studies',
@@ -21,22 +20,17 @@ const DEFAULT_USERS: User[] = [
   { id: '1', name: 'Admin Master', email: 'pastorescopel@gmail.com', password: 'admin', role: UserRole.ADMIN },
 ];
 
-// Variável interna para evitar que o "pull" apague mudanças locais recém feitas
-let lastSyncTimestamp = 0;
-const SYNC_LOCK_MS = 5000; // 5 segundos de trava
+let lastWriteTimestamp = 0;
+const PULL_LOCK_MS = 8000; // Aumentado para 8s para garantir que o Google apague a linha
 
 export const storageService = {
   init() {
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
     }
-    
     const currentConfig = this.getConfig();
     if (currentConfig.databaseURL !== INTERNAL_CLOUD_URL) {
-      this.saveConfig({
-        ...currentConfig,
-        databaseURL: INTERNAL_CLOUD_URL
-      });
+      this.saveConfig({ ...currentConfig, databaseURL: INTERNAL_CLOUD_URL });
     }
   },
 
@@ -44,9 +38,8 @@ export const storageService = {
     const url = INTERNAL_CLOUD_URL;
     if (!url || url.includes("SUA_URL")) return false;
 
-    // Se houve uma alteração local nos últimos segundos, ignora o pull para evitar "zombie data"
-    if (Date.now() - lastSyncTimestamp < SYNC_LOCK_MS) {
-      console.log("Pull bloqueado temporariamente para garantir consistência da última alteração.");
+    // Se houve gravação/exclusão recente, não faz pull para não trazer o dado "morto" de volta
+    if (Date.now() - lastWriteTimestamp < PULL_LOCK_MS) {
       return true; 
     }
 
@@ -56,9 +49,7 @@ export const storageService = {
       const cloudData = await response.json();
       
       if (cloudData) {
-        if (cloudData.users && cloudData.users.length > 0) {
-          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudData.users));
-        }
+        if (cloudData.users) localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudData.users));
         if (cloudData.studies) localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(cloudData.studies));
         if (cloudData.classes) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudData.classes));
         if (cloudData.groups) localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cloudData.groups));
@@ -68,27 +59,21 @@ export const storageService = {
       }
       return false;
     } catch (e) {
-      console.error("Falha na sincronização Cloud:", e);
       return false;
     }
   },
 
   async syncToCloud(type: string, data: any) {
     const url = INTERNAL_CLOUD_URL;
-    if (!url || url.includes("SUA_URL")) return;
+    if (!url) return;
 
-    // Atualiza o timestamp da última alteração para travar o pull temporariamente
-    lastSyncTimestamp = Date.now();
+    lastWriteTimestamp = Date.now();
 
     try {
       const user = this.getCurrentUser();
-      // Removido mode: 'no-cors' para permitir que o navegador siga o redirecionamento do Google (302)
-      // e para que o Google Scripts receba os cabeçalhos de JSON corretamente
       await fetch(url, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'text/plain;charset=utf-8', // Google Apps Script prefere text/plain para evitar pre-flight CORS em alguns casos
-        },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           type: type,
           timestamp: new Date().toISOString(),
@@ -97,88 +82,17 @@ export const storageService = {
         })
       });
     } catch (e) {
-      console.warn("Erro ao enviar dados para nuvem:", e);
+      console.warn("Cloud Sync Error:", e);
     }
   },
 
-  login(email: string, password?: string): User | null {
-    const users = this.getUsers();
-    const user = users.find(u => 
-      u.email.toLowerCase() === email.toLowerCase() && 
-      (u.password === password || (!u.password && !password))
-    );
-    if (user) {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-      return user;
-    }
-    return null;
-  },
-
-  logout() {
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-  },
-
-  getCurrentUser(): User | null {
-    const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    return data ? JSON.parse(data) : null;
-  },
-
-  updateCurrentUser(user: User) {
-    this.saveUser(user);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-  },
-
-  getUsers(): User[] {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-  },
-
-  async saveUser(user: User) {
-    const users = this.getUsers();
-    const index = users.findIndex(u => u.id === user.id);
-    if (index >= 0) users[index] = user;
-    else users.push(user);
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    await this.syncToCloud('USUARIOS', user);
-  },
-
-  async deleteUser(userId: string) {
-    const users = this.getUsers();
-    const filtered = users.filter(u => u.id !== userId);
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
-    await this.syncToCloud('DELETE_USER', { id: userId });
-  },
-
-  getStudies(): BiblicalStudy[] {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDIES) || '[]');
-  },
-
-  async saveStudy(study: BiblicalStudy) {
-    const data = this.getStudies();
-    const index = data.findIndex(i => i.id === study.id);
-    if (index >= 0) data[index] = study;
-    else data.push(study);
-    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(data));
-    await this.syncToCloud('ESTUDOS_BIBLICOS', study);
-  },
-
+  // --- MÉTODOS DE EXCLUSÃO CORRIGIDOS ---
+  
   async deleteStudy(id: string) {
     const data = this.getStudies();
     const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(filtered));
-    await this.syncToCloud('DELETE_STUDY', { id });
-  },
-
-  getClasses(): BiblicalClass[] {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.CLASSES) || '[]');
-  },
-
-  async saveClass(cls: BiblicalClass) {
-    const data = this.getClasses();
-    const index = data.findIndex(i => i.id === cls.id);
-    if (index >= 0) data[index] = cls;
-    else data.push(cls);
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(data));
-    await this.syncToCloud('CLASSES_BIBLICAS', cls);
+    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(filtered)); // Deleta local primeiro
+    await this.syncToCloud('DELETE_STUDY', { id }); // Envia comando de delete
   },
 
   async deleteClass(id: string) {
@@ -188,37 +102,11 @@ export const storageService = {
     await this.syncToCloud('DELETE_CLASS', { id });
   },
 
-  getGroups(): SmallGroup[] {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.GROUPS) || '[]');
-  },
-
-  async saveGroup(group: SmallGroup) {
-    const data = this.getGroups();
-    const index = data.findIndex(i => i.id === group.id);
-    if (index >= 0) data[index] = group;
-    else data.push(group);
-    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(data));
-    await this.syncToCloud('PEQUENOS_GRUPOS', group);
-  },
-
   async deleteGroup(id: string) {
     const data = this.getGroups();
     const filtered = data.filter(i => i.id !== id);
     localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(filtered));
     await this.syncToCloud('DELETE_GROUP', { id });
-  },
-
-  getVisits(): StaffVisit[] {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.VISITS) || '[]');
-  },
-
-  async saveVisit(visit: StaffVisit) {
-    const data = this.getVisits();
-    const index = data.findIndex(i => i.id === visit.id);
-    if (index >= 0) data[index] = visit;
-    else data.push(visit);
-    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(data));
-    await this.syncToCloud('VISITAS_COLABORADORES', visit);
   },
 
   async deleteVisit(id: string) {
@@ -228,27 +116,86 @@ export const storageService = {
     await this.syncToCloud('DELETE_VISIT', { id });
   },
 
-  getConfig(): CloudConfig {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG) || `{"databaseURL":"${INTERNAL_CLOUD_URL}","spreadsheetId":"","customSectors":[],"customCollaborators":[]}`);
+  // --- DEMAIS MÉTODOS ---
+
+  login(email: string, password?: string): User | null {
+    const users = this.getUsers();
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && (u.password === password || (!u.password && !password)));
+    if (user) {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+      return user;
+    }
+    return null;
   },
 
+  logout() { localStorage.removeItem(STORAGE_KEYS.CURRENT_USER); },
+  getCurrentUser(): User | null {
+    const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    return data ? JSON.parse(data) : null;
+  },
+  updateCurrentUser(user: User) {
+    this.saveUser(user);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+  },
+  getUsers(): User[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]'); },
+  async saveUser(user: User) {
+    const users = this.getUsers();
+    const index = users.findIndex(u => u.id === user.id);
+    if (index >= 0) users[index] = user; else users.push(user);
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    await this.syncToCloud('USUARIOS', user);
+  },
+  async deleteUser(userId: string) {
+    const users = this.getUsers();
+    const filtered = users.filter(u => u.id !== userId);
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
+    await this.syncToCloud('DELETE_USER', { id: userId });
+  },
+  getStudies(): BiblicalStudy[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDIES) || '[]'); },
+  async saveStudy(study: BiblicalStudy) {
+    const data = this.getStudies();
+    const index = data.findIndex(i => i.id === study.id);
+    if (index >= 0) data[index] = study; else data.push(study);
+    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(data));
+    await this.syncToCloud('ESTUDOS_BIBLICOS', study);
+  },
+  getClasses(): BiblicalClass[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.CLASSES) || '[]'); },
+  async saveClass(cls: BiblicalClass) {
+    const data = this.getClasses();
+    const index = data.findIndex(i => i.id === cls.id);
+    if (index >= 0) data[index] = cls; else data.push(cls);
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(data));
+    await this.syncToCloud('CLASSES_BIBLICAS', cls);
+  },
+  getGroups(): SmallGroup[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.GROUPS) || '[]'); },
+  async saveGroup(group: SmallGroup) {
+    const data = this.getGroups();
+    const index = data.findIndex(i => i.id === group.id);
+    if (index >= 0) data[index] = group; else data.push(group);
+    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(data));
+    await this.syncToCloud('PEQUENOS_GRUPOS', group);
+  },
+  getVisits(): StaffVisit[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.VISITS) || '[]'); },
+  async saveVisit(visit: StaffVisit) {
+    const data = this.getVisits();
+    const index = data.findIndex(i => i.id === visit.id);
+    if (index >= 0) data[index] = visit; else data.push(visit);
+    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(data));
+    await this.syncToCloud('VISITAS_COLABORADORES', visit);
+  },
+  getConfig(): CloudConfig { return JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG) || `{"databaseURL":"${INTERNAL_CLOUD_URL}","spreadsheetId":"","customSectors":[],"customCollaborators":[]}`); },
   async saveConfig(config: CloudConfig) {
     const finalConfig = { ...config, databaseURL: INTERNAL_CLOUD_URL };
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(finalConfig));
     await this.syncToCloud('CONFIGURACAO_SISTEMA', { ...finalConfig, appLogo: 'OMITIDO', reportLogo: 'OMITIDO' });
   },
-
-  getRequests(): ChangeRequest[] {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]');
-  },
-
+  getRequests(): ChangeRequest[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]'); },
   async addRequest(req: ChangeRequest) {
     const reqs = this.getRequests();
     reqs.push(req);
     localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(reqs));
     await this.syncToCloud('SOLICITACOES_ALTERACAO', req);
   },
-
   async updateRequestStatus(id: string, status: 'APPROVED' | 'REJECTED') {
     const reqs = this.getRequests();
     const idx = reqs.findIndex(r => r.id === id);
