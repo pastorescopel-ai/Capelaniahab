@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -24,15 +23,22 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initApp = async () => {
-      storageService.init();
-      const currentUser = storageService.getCurrentUser();
-      setUser(currentUser);
-      if (currentUser) {
-        setIsSyncing(true);
-        await storageService.pullFromCloud();
-        setIsSyncing(false);
+      try {
+        storageService.init();
+        const currentUser = storageService.getCurrentUser();
+        setUser(currentUser);
+        
+        if (currentUser) {
+          setIsSyncing(true);
+          // O pullFromCloud não deve impedir o app de carregar se falhar
+          await storageService.pullFromCloud().catch(err => console.warn("Sync falhou, usando dados locais.", err));
+          setIsSyncing(false);
+        }
+      } catch (error) {
+        console.error("Erro crítico na inicialização:", error);
+      } finally {
+        setIsInitializing(false);
       }
-      setIsInitializing(false);
     };
     initApp();
   }, []);
@@ -40,7 +46,7 @@ const App: React.FC = () => {
   const handleLogin = async (loggedUser: User) => {
     setUser(loggedUser);
     setIsSyncing(true);
-    await storageService.pullFromCloud();
+    await storageService.pullFromCloud().catch(() => {});
     setIsSyncing(false);
   };
 
@@ -57,7 +63,9 @@ const App: React.FC = () => {
   if (isInitializing) return (
     <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
       <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      <p className="mt-4 text-slate-500 font-medium tracking-tight">CAPELANIA HAB está carregando...</p>
+      <p className="mt-4 text-slate-500 font-medium tracking-tight animate-pulse text-center px-4">
+        CAPELANIA HAB está preparando seu ambiente...
+      </p>
     </div>
   );
 
@@ -122,6 +130,7 @@ const App: React.FC = () => {
           </div>
         </div>
       </main>
+      {/* Menu Inferior Mobile Adaptado */}
       <nav className="md:hidden fixed bottom-[88px] left-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-2xl flex items-center justify-around p-2 z-40">
         <button onClick={() => setActiveTab('dashboard')} className={`p-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-primary text-white scale-110 shadow-lg' : 'text-slate-400'}`}>
           <Icons.Dashboard />
@@ -136,11 +145,6 @@ const App: React.FC = () => {
         ) : (
           <button onClick={() => setActiveTab('profile')} className={`p-3 rounded-xl transition-all ${activeTab === 'profile' ? 'bg-primary text-white scale-110 shadow-lg' : 'text-slate-400'}`}>
             <Icons.Users />
-          </button>
-        )}
-        {user.role === UserRole.ADMIN && (
-          <button onClick={() => setActiveTab('admin')} className={`p-3 rounded-xl transition-all ${activeTab === 'admin' ? 'bg-primary text-white scale-110 shadow-lg' : 'text-slate-400'}`}>
-            <Icons.Admin />
           </button>
         )}
       </nav>

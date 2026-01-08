@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -10,16 +9,25 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    chunkSizeWarningLimit: 2000, // Aumenta o limite para 2MB para evitar o erro no Vercel
+    chunkSizeWarningLimit: 2500, // Aumentado para 2.5MB
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            // Move todas as bibliotecas externas para um arquivo separado (vendor)
+            if (id.includes('recharts') || id.includes('d3')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('react')) {
+              return 'vendor-react';
+            }
             return 'vendor';
           }
         },
       },
     },
+  },
+  server: {
+    port: 3000,
+    strictPort: true,
   }
 });
