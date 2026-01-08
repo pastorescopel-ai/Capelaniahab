@@ -59,6 +59,12 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
     });
   };
 
+  const handleToggleFollowUp = async (record: StaffVisit) => {
+    const updatedRecord = { ...record, needsFollowUp: !record.needsFollowUp };
+    await storageService.saveVisit(updatedRecord);
+    loadRecent();
+  };
+
   return (
     <div className="space-y-12">
       <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl">
@@ -91,7 +97,7 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
              <input type="checkbox" id="needs-followup-check" className="w-6 h-6 accent-primary rounded-lg cursor-pointer" checked={formData.needsFollowUp} onChange={e => setFormData({...formData, needsFollowUp: e.target.checked})} />
              <label htmlFor="needs-followup-check" className="text-sm font-black text-slate-700 cursor-pointer select-none">
                 MARCAR PARA RETORNO PASTORAL?
-                <p className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Alertará seu dashboard futuramente.</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Sinalizará uma bandeira vermelha no histórico.</p>
              </label>
           </div>
           <textarea rows={3} className="md:col-span-2 w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-medium" placeholder="Relato do atendimento..." value={formData.observations} onChange={(e) => setFormData({...formData, observations: e.target.value})} />
@@ -105,11 +111,25 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 italic">Histórico Mensal ({recentRecords.length})</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {recentRecords.map(record => (
-            <div key={record.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-md flex items-center justify-between">
-              <div>
-                <p className="font-black text-slate-800 truncate">{record.staffName}</p>
-                <p className="text-[10px] text-green-600 font-bold uppercase">{record.sector} • {record.reason}</p>
+            <div key={record.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-md flex items-center justify-between group relative overflow-hidden">
+              <div className="flex items-center gap-4 flex-1">
+                {/* Bandeira de Retorno */}
+                <button 
+                  onClick={() => handleToggleFollowUp(record)}
+                  className={`p-2 rounded-xl transition-all hover:scale-110 ${record.needsFollowUp ? 'bg-danger/10 text-danger animate-pulse' : 'bg-success/10 text-success'}`}
+                  title={record.needsFollowUp ? "Pendente de Retorno (Clique para finalizar)" : "Retorno Realizado (Clique para reabrir)"}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5.221 21.0001C4.84715 21.0001 4.54419 20.6971 4.54419 20.3233V4.07326C4.54419 3.69941 4.84715 3.39645 5.221 3.39645C5.36709 3.39645 5.51036 3.44391 5.62886 3.5317L18.1544 11.2317C18.4601 11.4198 18.5524 11.8239 18.3644 12.1296C18.3103 12.2176 18.2384 12.2895 18.1504 12.3436L5.62483 20.8682C5.50854 20.9542 5.36653 21.0001 5.221 21.0001Z" />
+                  </svg>
+                </button>
+
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-slate-800 truncate">{record.staffName}</p>
+                  <p className="text-[10px] text-green-600 font-bold uppercase">{record.sector} • {record.reason}</p>
+                </div>
               </div>
+
               <div className="flex gap-2">
                  <button onClick={() => { setFormData({...record}); window.scrollTo({top:0, behavior:'smooth'}); }} className="p-2 bg-slate-50 text-primary rounded-xl hover:bg-primary hover:text-white transition-all">📝</button>
                  <button onClick={async () => { if(confirm("Apagar permanentemente?")) { await storageService.deleteVisit(record.id); loadRecent(); } }} className="p-2 bg-slate-50 text-danger rounded-xl hover:bg-danger hover:text-white transition-all">✕</button>
