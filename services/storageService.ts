@@ -1,6 +1,7 @@
+
 import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig, ChangeRequest } from '../types';
 
-// ATENÇÃO: Verifique se esta URL é a sua última "Implantação" no Apps Script
+// URL da sua nova implantação do Apps Script
 const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbw0ub9hBJxSKEwHDKrZYxhvhAnGIr1zkk4DJMokboDZyjT3eSBIwUwr0jHZ-fZHAn9k6A/exec"; 
 
 const STORAGE_KEYS = {
@@ -14,18 +15,26 @@ const STORAGE_KEYS = {
   VISITS: 'cap_visits'
 };
 
-const DEFAULT_USERS: User[] = [
-  { id: '1', name: 'Admin Master', email: 'pastorescopel@gmail.com', password: 'admin', role: UserRole.ADMIN },
-];
+const MASTER_ADMIN: User = { 
+  id: 'master-admin', 
+  name: 'Admin Master', 
+  email: 'pastorescopel@gmail.com', 
+  password: 'admin', 
+  role: UserRole.ADMIN 
+};
 
 let lastWriteTimestamp = 0;
-const PULL_LOCK_MS = 8000;
+const PULL_LOCK_MS = 5000;
 
 export const storageService = {
   init() {
-    if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
+    // Garante que o usuário mestre sempre exista localmente
+    const users = this.getUsers();
+    if (!users.find(u => u.email === MASTER_ADMIN.email)) {
+      users.push(MASTER_ADMIN);
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     }
+    
     const currentConfig = this.getConfig();
     if (currentConfig.databaseURL !== INTERNAL_CLOUD_URL) {
       this.saveConfig({ ...currentConfig, databaseURL: INTERNAL_CLOUD_URL });
@@ -39,7 +48,14 @@ export const storageService = {
       if (!response.ok) return false;
       const cloudData = await response.json();
       if (cloudData) {
-        if (cloudData.users) localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudData.users));
+        if (cloudData.users) {
+          // Mescla usuários da nuvem com o admin mestre local
+          const combinedUsers = [...cloudData.users];
+          if (!combinedUsers.find((u: User) => u.email === MASTER_ADMIN.email)) {
+            combinedUsers.push(MASTER_ADMIN);
+          }
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(combinedUsers));
+        }
         if (cloudData.studies) localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(cloudData.studies));
         if (cloudData.classes) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudData.classes));
         if (cloudData.groups) localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cloudData.groups));
@@ -94,7 +110,12 @@ export const storageService = {
 
   login(email: string, password?: string): User | null {
     const users = this.getUsers();
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && (u.password === password || (!u.password && !password)));
+    // Prioriza o login do Master Admin
+    if (email === MASTER_ADMIN.email && password === MASTER_ADMIN.password) {
+       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(MASTER_ADMIN));
+       return MASTER_ADMIN;
+    }
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && (u.password === password));
     if (user) {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
       return user;
@@ -111,7 +132,12 @@ export const storageService = {
     this.saveUser(user);
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
   },
-  getUsers(): User[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]'); },
+  getUsers(): User[] { 
+    const stored = localStorage.getItem(STORAGE_KEYS.USERS);
+    const users = stored ? JSON.parse(stored) : [MASTER_ADMIN];
+    if (!users.find((u: User) => u.email === MASTER_ADMIN.email)) users.push(MASTER_ADMIN);
+    return users;
+  },
   async saveUser(user: User) {
     const users = this.getUsers();
     const index = users.findIndex(u => u.id === user.id);
@@ -120,6 +146,7 @@ export const storageService = {
     await this.syncToCloud('USUARIOS', user);
   },
   async deleteUser(userId: string) {
+    if (userId === MASTER_ADMIN.id) return; // Proteção extra
     const users = this.getUsers().filter(u => u.id !== userId);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     await this.syncToCloud('DELETE_USER', { id: userId });
