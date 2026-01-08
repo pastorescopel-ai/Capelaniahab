@@ -1,0 +1,5 @@
+{
+  "name": "Capelania Pro - Sistema de Gestão Hospitalar",
+  "description": "Uma plataforma PWA premium para gestão de atividades de capelania hospitalar, permitindo registros de estudos, visitas e relatórios detalhados com sincronização em nuvem.",
+  "requestFramePermissions": []
+}
