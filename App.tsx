@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -26,17 +27,13 @@ const App: React.FC = () => {
       storageService.init();
       const currentUser = storageService.getCurrentUser();
       setUser(currentUser);
-      
       if (currentUser) {
         setIsSyncing(true);
-        // Tenta baixar os dados mais recentes da nuvem para que o usuário veja o que outros postaram
         await storageService.pullFromCloud();
         setIsSyncing(false);
       }
-      
       setIsInitializing(false);
     };
-    
     initApp();
   }, []);
 
@@ -60,7 +57,7 @@ const App: React.FC = () => {
   if (isInitializing) return (
     <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
       <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      <p className="mt-4 text-slate-500 font-medium tracking-tight">Capelania Pro está carregando...</p>
+      <p className="mt-4 text-slate-500 font-medium tracking-tight">CAPELANIA HAB está carregando...</p>
     </div>
   );
 
@@ -85,9 +82,7 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar user={user} activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
-      
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* TOP HEADER */}
         <header className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-sm z-30">
           <div className="flex items-center gap-4">
             <div className="md:hidden w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xs">C</div>
@@ -100,7 +95,6 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
-          
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 pr-4 border-r border-slate-100 cursor-pointer" onClick={() => setActiveTab('profile')}>
               <div className="text-right hidden sm:block">
@@ -122,15 +116,12 @@ const App: React.FC = () => {
             </button>
           </div>
         </header>
-
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 md:p-8 lg:p-12">
           <div className="max-w-7xl mx-auto">
             {renderContent()}
           </div>
         </div>
       </main>
-
-      {/* MOBILE NAVS MANTIDAS IGUAIS */}
       <nav className="md:hidden fixed bottom-[88px] left-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-2xl flex items-center justify-around p-2 z-40">
         <button onClick={() => setActiveTab('dashboard')} className={`p-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-primary text-white scale-110 shadow-lg' : 'text-slate-400'}`}>
           <Icons.Dashboard />
@@ -138,7 +129,6 @@ const App: React.FC = () => {
         <button onClick={() => setActiveTab('history')} className={`p-3 rounded-xl transition-all ${activeTab === 'history' ? 'bg-primary text-white scale-110 shadow-lg' : 'text-slate-400'}`}>
           <Icons.Sync />
         </button>
-        
         {user.role === UserRole.ADMIN ? (
           <button onClick={() => setActiveTab('reports')} className={`p-3 rounded-xl transition-all ${activeTab === 'reports' ? 'bg-primary text-white scale-110 shadow-lg' : 'text-slate-400'}`}>
             <Icons.Reports />
@@ -148,14 +138,12 @@ const App: React.FC = () => {
             <Icons.Users />
           </button>
         )}
-
         {user.role === UserRole.ADMIN && (
           <button onClick={() => setActiveTab('admin')} className={`p-3 rounded-xl transition-all ${activeTab === 'admin' ? 'bg-primary text-white scale-110 shadow-lg' : 'text-slate-400'}`}>
             <Icons.Admin />
           </button>
         )}
       </nav>
-
       <nav className="md:hidden fixed bottom-4 left-4 right-4 bg-slate-900 rounded-2xl shadow-2xl flex items-center justify-around p-2 z-50">
         <button onClick={() => setActiveTab('estudos')} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === 'estudos' ? 'text-white bg-white/10' : 'text-white/40'}`}>
           <Icons.Study />

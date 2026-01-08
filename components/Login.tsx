@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { User } from '../types';
@@ -15,7 +16,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const config = storageService.getConfig();
 
   useEffect(() => {
-    // Sincronização silenciosa na abertura para garantir usuários atualizados
     const autoSync = async () => {
       setIsSyncing(true);
       await storageService.pullFromCloud();
@@ -27,10 +27,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
-    
-    // Tenta sincronizar uma última vez antes de validar
     await storageService.pullFromCloud();
-    
     const user = storageService.login(email, password);
     setIsSyncing(false);
 
@@ -57,7 +54,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
             )}
           </div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic text-center">Capelania Pro</h1>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic text-center">CAPELANIA HAB</h1>
           <p className="text-slate-500 mt-2 font-bold uppercase text-[10px] tracking-[0.2em] opacity-60 italic text-center">Acesso ao Sistema</p>
         </div>
 

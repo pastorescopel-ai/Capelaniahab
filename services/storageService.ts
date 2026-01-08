@@ -1,9 +1,10 @@
+
 import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig, ChangeRequest } from '../types';
 
 // =========================================================
 // CONFIGURAÇÃO INTERNA DO BACKEND (GOOGLE APPS SCRIPT)
 // =========================================================
-const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbyPTDlBXhu6puvOBueqBfnBOUaD4u5C_PmjOBuXf7AuAAGooSYQRCxreREFxOFsrce7bQ/exec"; 
+const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbyK6BbTSTpWUt7XNH73UDIdkruAympvXtW_yauVODPfl4GrvjAWpJ8X7Ntcar8AkIteOQ/exec"; 
 
 const STORAGE_KEYS = {
   STUDIES: 'cap_studies',
@@ -21,7 +22,7 @@ const DEFAULT_USERS: User[] = [
 ];
 
 let lastWriteTimestamp = 0;
-const PULL_LOCK_MS = 10000; // 10 segundos para dar tempo do Google processar a deleção física
+const PULL_LOCK_MS = 12000; // 12 segundos para garantir que a planilha processe a exclusão física
 
 export const storageService = {
   init() {
@@ -40,7 +41,6 @@ export const storageService = {
 
     // Se houve gravação/exclusão recente, ignora o pull temporariamente
     if (Date.now() - lastWriteTimestamp < PULL_LOCK_MS) {
-      console.log("Pull bloqueado: aguardando processamento da nuvem...");
       return true; 
     }
 
@@ -72,10 +72,10 @@ export const storageService = {
 
     try {
       const user = this.getCurrentUser();
-      // Usamos text/plain para evitar problemas de pre-flight CORS no Google Apps Script
+      // O modo 'no-cors' impede o acesso à resposta, mas permite o envio POST cruzado para o Google
       await fetch(url, {
         method: 'POST',
-        mode: 'no-cors', // Essencial para Vercel -> Google Apps Script (302 redirect)
+        mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           type: type,
@@ -89,8 +89,6 @@ export const storageService = {
     }
   },
 
-  // --- MÉTODOS DE EXCLUSÃO ---
-  
   async deleteStudy(id: string) {
     const data = this.getStudies();
     const filtered = data.filter(i => i.id !== id);
@@ -118,8 +116,6 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(filtered));
     await this.syncToCloud('DELETE_VISIT', { id });
   },
-
-  // --- DEMAIS MÉTODOS ---
 
   login(email: string, password?: string): User | null {
     const users = this.getUsers();

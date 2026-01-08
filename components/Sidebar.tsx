@@ -41,7 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
           )}
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Capelania Pro</h1>
+          <h1 className="text-xl font-bold tracking-tight">CAPELANIA HAB</h1>
           <div className="flex items-center gap-1">
             <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-success animate-pulse' : 'bg-warning'}`}></span>
             <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">
