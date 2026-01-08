@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { User, UserRole, ChangeRequest } from '../types';
@@ -12,6 +11,7 @@ const History: React.FC<HistoryProps> = ({ user }) => {
   const [records, setRecords] = useState<any[]>([]);
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
   const [filterModule, setFilterModule] = useState<string>('ALL');
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Estados para Controle de Modais
   const [isEditing, setIsEditing] = useState<any | null>(null);
@@ -43,38 +43,45 @@ const History: React.FC<HistoryProps> = ({ user }) => {
     return d.getMonth() + 1 === m && d.getFullYear() === y;
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     const record = confirmDelete;
-    if (!record) return;
+    if (!record || isProcessing) return;
 
-    if (!isCurrentMonth(record.month, record.year)) {
-      const reason = prompt("Este registro é de um mês passado. Justifique a exclusão para o administrador:");
-      if (reason) {
-        storageService.addRequest({
-          id: Math.random().toString(36).substr(2, 9),
-          recordId: record.id,
-          type: 'DELETE',
-          module: record._module,
-          status: 'PENDING',
-          requestedBy: user.id,
-          requestedByName: user.name,
-          requestedAt: new Date().toISOString(),
-          reason
-        });
-        alert("Solicitação de exclusão enviada com sucesso!");
-        loadData();
+    setIsProcessing(true);
+
+    try {
+      if (!isCurrentMonth(record.month, record.year)) {
+        const reason = prompt("Este registro é de um mês passado. Justifique a exclusão para o administrador:");
+        if (reason) {
+          await storageService.addRequest({
+            id: Math.random().toString(36).substr(2, 9),
+            recordId: record.id,
+            type: 'DELETE',
+            module: record._module,
+            status: 'PENDING',
+            requestedBy: user.id,
+            requestedByName: user.name,
+            requestedAt: new Date().toISOString(),
+            reason
+          });
+          alert("Solicitação de exclusão enviada com sucesso!");
+        }
+      } else {
+        switch (record._module) {
+          case 'STUDY': await storageService.deleteStudy(record.id); break;
+          case 'CLASS': await storageService.deleteClass(record.id); break;
+          case 'PG': await storageService.deleteGroup(record.id); break;
+          case 'VISIT': await storageService.deleteVisit(record.id); break;
+        }
+        alert("Registro excluído com sucesso!");
       }
-    } else {
-      switch (record._module) {
-        case 'STUDY': storageService.deleteStudy(record.id); break;
-        case 'CLASS': storageService.deleteClass(record.id); break;
-        case 'PG': storageService.deleteGroup(record.id); break;
-        case 'VISIT': storageService.deleteVisit(record.id); break;
-      }
+    } catch (e) {
+      alert("Erro ao excluir. Verifique sua conexão.");
+    } finally {
       loadData();
-      alert("Registro excluído com sucesso!");
+      setIsProcessing(false);
+      setConfirmDelete(null);
     }
-    setConfirmDelete(null);
   };
 
   const openEditor = () => {
@@ -89,61 +96,75 @@ const History: React.FC<HistoryProps> = ({ user }) => {
     return `(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7)}`;
   };
 
-  const saveEdit = (e: React.FormEvent) => {
+  const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
     const { _module, ...cleanRecord } = isEditing;
 
-    if (!isCurrentMonth(isEditing.month, isEditing.year)) {
-      const reason = prompt("Justificativa para alteração de mês retroativo:");
-      if (reason) {
-        storageService.addRequest({
-          id: Math.random().toString(36).substr(2, 9),
-          recordId: isEditing.id,
-          type: 'EDIT',
-          module: _module,
-          status: 'PENDING',
-          requestedBy: user.id,
-          requestedByName: user.name,
-          requestedAt: new Date().toISOString(),
-          reason,
-          newData: cleanRecord
-        });
-        alert("Solicitação de edição retroativa enviada!");
+    try {
+      if (!isCurrentMonth(isEditing.month, isEditing.year)) {
+        const reason = prompt("Justificativa para alteração de mês retroativo:");
+        if (reason) {
+          await storageService.addRequest({
+            id: Math.random().toString(36).substr(2, 9),
+            recordId: isEditing.id,
+            type: 'EDIT',
+            module: _module,
+            status: 'PENDING',
+            requestedBy: user.id,
+            requestedByName: user.name,
+            requestedAt: new Date().toISOString(),
+            reason,
+            newData: cleanRecord
+          });
+          alert("Solicitação de edição retroativa enviada!");
+        }
+      } else {
+        // Edição direta
+        switch (_module) {
+          case 'STUDY': await storageService.saveStudy(cleanRecord); break;
+          case 'CLASS': await storageService.saveClass(cleanRecord); break;
+          case 'PG': await storageService.saveGroup(cleanRecord); break;
+          case 'VISIT': await storageService.saveVisit(cleanRecord); break;
+        }
+        alert("Alterações salvas com sucesso!");
       }
+    } catch (e) {
+      alert("Erro ao salvar alterações.");
+    } finally {
       setIsEditing(null);
-      return;
+      loadData();
+      setIsProcessing(false);
     }
-
-    // Edição direta
-    switch (_module) {
-      case 'STUDY': storageService.saveStudy(cleanRecord); break;
-      case 'CLASS': storageService.saveClass(cleanRecord); break;
-      case 'PG': storageService.saveGroup(cleanRecord); break;
-      case 'VISIT': storageService.saveVisit(cleanRecord); break;
-    }
-    setIsEditing(null);
-    loadData();
-    alert("Alterações salvas com sucesso!");
   };
 
-  const approveRequest = (req: ChangeRequest) => {
-    if (req.type === 'DELETE') {
-      switch (req.module) {
-        case 'STUDY': storageService.deleteStudy(req.recordId); break;
-        case 'CLASS': storageService.deleteClass(req.recordId); break;
-        case 'PG': storageService.deleteGroup(req.recordId); break;
-        case 'VISIT': storageService.deleteVisit(req.recordId); break;
+  const approveRequest = async (req: ChangeRequest) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
+    try {
+      if (req.type === 'DELETE') {
+        switch (req.module) {
+          case 'STUDY': await storageService.deleteStudy(req.recordId); break;
+          case 'CLASS': await storageService.deleteClass(req.recordId); break;
+          case 'PG': await storageService.deleteGroup(req.recordId); break;
+          case 'VISIT': await storageService.deleteVisit(req.recordId); break;
+        }
+      } else if (req.type === 'EDIT' && req.newData) {
+        switch (req.module) {
+          case 'STUDY': await storageService.saveStudy(req.newData); break;
+          case 'CLASS': await storageService.saveClass(req.newData); break;
+          case 'PG': await storageService.saveGroup(req.newData); break;
+          case 'VISIT': await storageService.saveVisit(req.newData); break;
+        }
       }
-    } else if (req.type === 'EDIT' && req.newData) {
-      switch (req.module) {
-        case 'STUDY': storageService.saveStudy(req.newData); break;
-        case 'CLASS': storageService.saveClass(req.newData); break;
-        case 'PG': storageService.saveGroup(req.newData); break;
-        case 'VISIT': storageService.saveVisit(req.newData); break;
-      }
+      await storageService.updateRequestStatus(req.id, 'APPROVED');
+    } finally {
+      loadData();
+      setIsProcessing(false);
     }
-    storageService.updateRequestStatus(req.id, 'APPROVED');
-    loadData();
   };
 
   const filteredRecords = records.filter(r => 
@@ -175,14 +196,18 @@ const History: React.FC<HistoryProps> = ({ user }) => {
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
           <div className="bg-white rounded-premium p-8 max-w-sm w-full text-center space-y-6 shadow-2xl animate-in zoom-in duration-300">
-            <div className="w-20 h-20 bg-danger/10 text-danger rounded-full flex items-center justify-center text-4xl mx-auto">⚠️</div>
+            <div className="w-20 h-20 bg-danger/10 text-danger rounded-full flex items-center justify-center text-4xl mx-auto">
+              {isProcessing ? <div className="w-8 h-8 border-2 border-danger border-t-transparent rounded-full animate-spin"></div> : "⚠️"}
+            </div>
             <div className="space-y-2">
               <h3 className="text-2xl font-black text-slate-800">Confirmar Exclusão</h3>
               <p className="text-slate-500 text-sm">Deseja realmente apagar o registro de <span className="font-bold text-slate-700">"{confirmDelete.patientName || confirmDelete.staffName || confirmDelete.name}"</span>?</p>
             </div>
             <div className="flex gap-4">
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold">Não, manter</button>
-              <button onClick={executeDelete} className="flex-1 py-4 bg-danger text-white rounded-2xl font-bold shadow-lg shadow-danger/20">Sim, excluir</button>
+              <button disabled={isProcessing} onClick={() => setConfirmDelete(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold">Não, manter</button>
+              <button disabled={isProcessing} onClick={executeDelete} className="flex-1 py-4 bg-danger text-white rounded-2xl font-bold shadow-lg shadow-danger/20">
+                {isProcessing ? 'Excluindo...' : 'Sim, excluir'}
+              </button>
             </div>
           </div>
         </div>
@@ -332,8 +357,10 @@ const History: React.FC<HistoryProps> = ({ user }) => {
                 <textarea className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl min-h-[100px] outline-none focus:ring-2 focus:ring-primary/20" value={isEditing.observations || ''} onChange={e => setIsEditing({...isEditing, observations: e.target.value})} />
               </div>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsEditing(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/20">Efetivar Alterações</button>
+                <button disabled={isProcessing} type="button" onClick={() => setIsEditing(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold">Cancelar</button>
+                <button disabled={isProcessing} type="submit" className="flex-1 py-4 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/20">
+                  {isProcessing ? 'Salvando...' : 'Efetivar Alterações'}
+                </button>
               </div>
             </form>
           </div>
@@ -357,8 +384,8 @@ const History: React.FC<HistoryProps> = ({ user }) => {
                   <p className="text-sm text-slate-600 mt-3 italic bg-slate-50 p-3 rounded-xl">"{req.reason || 'Sem justificativa'}"</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => storageService.updateRequestStatus(req.id, 'REJECTED')} className="flex-1 py-2 text-xs font-bold text-slate-400 hover:text-danger border border-slate-100 rounded-xl transition-all">Recusar</button>
-                  <button onClick={() => approveRequest(req)} className="flex-1 py-2 text-xs font-bold bg-success text-white rounded-xl shadow-lg shadow-success/20 hover:scale-105 transition-all">Aprovar</button>
+                  <button disabled={isProcessing} onClick={() => storageService.updateRequestStatus(req.id, 'REJECTED')} className="flex-1 py-2 text-xs font-bold text-slate-400 hover:text-danger border border-slate-100 rounded-xl transition-all">Recusar</button>
+                  <button disabled={isProcessing} onClick={() => approveRequest(req)} className="flex-1 py-2 text-xs font-bold bg-success text-white rounded-xl shadow-lg shadow-success/20 hover:scale-105 transition-all">Aprovar</button>
                 </div>
               </div>
             ))}

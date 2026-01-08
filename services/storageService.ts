@@ -21,13 +21,16 @@ const DEFAULT_USERS: User[] = [
   { id: '1', name: 'Admin Master', email: 'pastorescopel@gmail.com', password: 'admin', role: UserRole.ADMIN },
 ];
 
+// Variável interna para evitar que o "pull" apague mudanças locais recém feitas
+let lastSyncTimestamp = 0;
+const SYNC_LOCK_MS = 5000; // 5 segundos de trava
+
 export const storageService = {
   init() {
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
     }
     
-    // Garante que a URL interna seja aplicada à configuração local
     const currentConfig = this.getConfig();
     if (currentConfig.databaseURL !== INTERNAL_CLOUD_URL) {
       this.saveConfig({
@@ -40,6 +43,12 @@ export const storageService = {
   async pullFromCloud(): Promise<boolean> {
     const url = INTERNAL_CLOUD_URL;
     if (!url || url.includes("SUA_URL")) return false;
+
+    // Se houve uma alteração local nos últimos segundos, ignora o pull para evitar "zombie data"
+    if (Date.now() - lastSyncTimestamp < SYNC_LOCK_MS) {
+      console.log("Pull bloqueado temporariamente para garantir consistência da última alteração.");
+      return true; 
+    }
 
     try {
       const response = await fetch(`${url}?action=fetchAll`);
@@ -68,12 +77,18 @@ export const storageService = {
     const url = INTERNAL_CLOUD_URL;
     if (!url || url.includes("SUA_URL")) return;
 
+    // Atualiza o timestamp da última alteração para travar o pull temporariamente
+    lastSyncTimestamp = Date.now();
+
     try {
       const user = this.getCurrentUser();
+      // Removido mode: 'no-cors' para permitir que o navegador siga o redirecionamento do Google (302)
+      // e para que o Google Scripts receba os cabeçalhos de JSON corretamente
       await fetch(url, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'text/plain;charset=utf-8', // Google Apps Script prefere text/plain para evitar pre-flight CORS em alguns casos
+        },
         body: JSON.stringify({
           type: type,
           timestamp: new Date().toISOString(),
@@ -117,131 +132,130 @@ export const storageService = {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
   },
 
-  saveUser(user: User) {
+  async saveUser(user: User) {
     const users = this.getUsers();
     const index = users.findIndex(u => u.id === user.id);
     if (index >= 0) users[index] = user;
     else users.push(user);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    this.syncToCloud('USUARIOS', user);
+    await this.syncToCloud('USUARIOS', user);
   },
 
-  deleteUser(userId: string) {
+  async deleteUser(userId: string) {
     const users = this.getUsers();
     const filtered = users.filter(u => u.id !== userId);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
-    this.syncToCloud('DELETE_USER', { id: userId });
+    await this.syncToCloud('DELETE_USER', { id: userId });
   },
 
   getStudies(): BiblicalStudy[] {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDIES) || '[]');
   },
 
-  saveStudy(study: BiblicalStudy) {
+  async saveStudy(study: BiblicalStudy) {
     const data = this.getStudies();
     const index = data.findIndex(i => i.id === study.id);
     if (index >= 0) data[index] = study;
     else data.push(study);
     localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(data));
-    this.syncToCloud('ESTUDOS_BIBLICOS', study);
+    await this.syncToCloud('ESTUDOS_BIBLICOS', study);
   },
 
-  deleteStudy(id: string) {
+  async deleteStudy(id: string) {
     const data = this.getStudies();
     const filtered = data.filter(i => i.id !== id);
     localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(filtered));
-    this.syncToCloud('DELETE_STUDY', { id });
+    await this.syncToCloud('DELETE_STUDY', { id });
   },
 
   getClasses(): BiblicalClass[] {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.CLASSES) || '[]');
   },
 
-  saveClass(cls: BiblicalClass) {
+  async saveClass(cls: BiblicalClass) {
     const data = this.getClasses();
     const index = data.findIndex(i => i.id === cls.id);
     if (index >= 0) data[index] = cls;
     else data.push(cls);
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(data));
-    this.syncToCloud('CLASSES_BIBLICAS', cls);
+    await this.syncToCloud('CLASSES_BIBLICAS', cls);
   },
 
-  deleteClass(id: string) {
+  async deleteClass(id: string) {
     const data = this.getClasses();
     const filtered = data.filter(i => i.id !== id);
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(filtered));
-    this.syncToCloud('DELETE_CLASS', { id });
+    await this.syncToCloud('DELETE_CLASS', { id });
   },
 
   getGroups(): SmallGroup[] {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.GROUPS) || '[]');
   },
 
-  saveGroup(group: SmallGroup) {
+  async saveGroup(group: SmallGroup) {
     const data = this.getGroups();
     const index = data.findIndex(i => i.id === group.id);
     if (index >= 0) data[index] = group;
     else data.push(group);
     localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(data));
-    this.syncToCloud('PEQUENOS_GRUPOS', group);
+    await this.syncToCloud('PEQUENOS_GRUPOS', group);
   },
 
-  deleteGroup(id: string) {
+  async deleteGroup(id: string) {
     const data = this.getGroups();
     const filtered = data.filter(i => i.id !== id);
     localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(filtered));
-    this.syncToCloud('DELETE_GROUP', { id });
+    await this.syncToCloud('DELETE_GROUP', { id });
   },
 
   getVisits(): StaffVisit[] {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.VISITS) || '[]');
   },
 
-  saveVisit(visit: StaffVisit) {
+  async saveVisit(visit: StaffVisit) {
     const data = this.getVisits();
     const index = data.findIndex(i => i.id === visit.id);
     if (index >= 0) data[index] = visit;
     else data.push(visit);
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(data));
-    this.syncToCloud('VISITAS_COLABORADORES', visit);
+    await this.syncToCloud('VISITAS_COLABORADORES', visit);
   },
 
-  deleteVisit(id: string) {
+  async deleteVisit(id: string) {
     const data = this.getVisits();
     const filtered = data.filter(i => i.id !== id);
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(filtered));
-    this.syncToCloud('DELETE_VISIT', { id });
+    await this.syncToCloud('DELETE_VISIT', { id });
   },
 
   getConfig(): CloudConfig {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG) || `{"databaseURL":"${INTERNAL_CLOUD_URL}","spreadsheetId":"","customSectors":[],"customCollaborators":[]}`);
   },
 
-  saveConfig(config: CloudConfig) {
-    // Garante que a URL interna nunca seja sobrescrita por uma vazia
+  async saveConfig(config: CloudConfig) {
     const finalConfig = { ...config, databaseURL: INTERNAL_CLOUD_URL };
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(finalConfig));
-    this.syncToCloud('CONFIGURACAO_SISTEMA', { ...finalConfig, appLogo: 'OMITIDO', reportLogo: 'OMITIDO' });
+    await this.syncToCloud('CONFIGURACAO_SISTEMA', { ...finalConfig, appLogo: 'OMITIDO', reportLogo: 'OMITIDO' });
   },
 
   getRequests(): ChangeRequest[] {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]');
   },
 
-  addRequest(req: ChangeRequest) {
+  async addRequest(req: ChangeRequest) {
     const reqs = this.getRequests();
     reqs.push(req);
     localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(reqs));
-    this.syncToCloud('SOLICITACOES_ALTERACAO', req);
+    await this.syncToCloud('SOLICITACOES_ALTERACAO', req);
   },
 
-  updateRequestStatus(id: string, status: 'APPROVED' | 'REJECTED') {
+  async updateRequestStatus(id: string, status: 'APPROVED' | 'REJECTED') {
     const reqs = this.getRequests();
     const idx = reqs.findIndex(r => r.id === id);
     if (idx >= 0) {
       reqs[idx].status = status;
       localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(reqs));
-      this.syncToCloud('UPDATE_REQUEST', { id, status });
+      await this.syncToCloud('UPDATE_REQUEST', { id, status });
     }
   }
 };
