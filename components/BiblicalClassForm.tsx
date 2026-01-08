@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { SECTORS, STUDY_GUIDES } from '../constants';
 import { storageService } from '../services/storageService';
 import { BiblicalClass, User } from '../types';
@@ -10,16 +11,39 @@ interface BiblicalClassFormProps {
 
 const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }) => {
   const [recentRecords, setRecentRecords] = useState<BiblicalClass[]>([]);
+  const config = storageService.getConfig();
+  const sectors = config.customSectors.length > 0 ? config.customSectors : SECTORS;
+
   const [formData, setFormData] = useState({
     id: '',
     date: new Date().toISOString().split('T')[0],
-    sector: SECTORS[0],
+    sector: sectors[0],
     studySeries: '',
     currentLesson: '',
     observations: ''
   });
   const [students, setStudents] = useState<string[]>([]);
   const [newStudent, setNewStudent] = useState('');
+
+  const allClasses = useMemo(() => storageService.getClasses(), [recentRecords]);
+  
+  // Lista de Classes Recentes para Replicação
+  const uniqueClasses = useMemo(() => {
+    const map = new Map<string, BiblicalClass>();
+    allClasses.forEach(c => {
+        const key = `${c.sector}-${c.students.sort().join(',')}`;
+        if (!map.has(key)) map.set(key, c);
+    });
+    return Array.from(map.values()).slice(0, 10);
+  }, [allClasses]);
+
+  const handleReplicaClass = (classId: string) => {
+    const base = uniqueClasses.find(c => c.id === classId);
+    if (base) {
+        setStudents([...base.students]);
+        setFormData({...formData, sector: base.sector, studySeries: base.studySeries, id: ''});
+    }
+  };
 
   const loadRecent = () => {
     const now = new Date();
@@ -33,11 +57,7 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (students.length === 0) {
-      alert("Por favor, adicione pelo menos um aluno na lista.");
-      return;
-    }
-    if (!formData.studySeries || !formData.currentLesson) {
-      alert("Os campos Guia de Estudo e Lição são obrigatórios.");
+      alert("Adicione pelo menos um aluno na lista.");
       return;
     }
 
@@ -52,31 +72,28 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
       createdAt: formData.id ? recentRecords.find(r => r.id === formData.id)?.createdAt || new Date().toISOString() : new Date().toISOString()
     };
     storageService.saveClass(cls).then(() => {
-      alert("Classe bíblica registrada com sucesso!");
-      setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: SECTORS[0], studySeries: '', currentLesson: '', observations: '' });
+      alert("Classe bíblica registrada!");
+      setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: sectors[0], studySeries: '', currentLesson: '', observations: '' });
       setStudents([]);
       loadRecent();
       onSuccess();
     });
   };
 
-  const handleEdit = (record: BiblicalClass) => {
-    setFormData({
-      id: record.id,
-      date: record.date,
-      sector: record.sector,
-      studySeries: record.studySeries || '',
-      currentLesson: record.currentLesson || '',
-      observations: record.observations || ''
-    });
-    setStudents([...record.students]);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   return (
     <div className="space-y-12">
-      <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2"><span>🎓</span> Registro de Classe Bíblica</h2>
+      <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl">
+        <div className="flex justify-between items-center mb-8 border-b pb-4">
+           <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2 italic">🎓 Classe Bíblica</h2>
+           <div className="flex items-center gap-2">
+              <label className="text-[10px] font-black uppercase text-slate-400">Replicar Classe:</label>
+              <select onChange={(e) => handleReplicaClass(e.target.value)} className="bg-slate-50 px-4 py-2 rounded-xl text-xs font-bold text-purple-600 border-none outline-none">
+                 <option value="">Selecione uma anterior...</option>
+                 {uniqueClasses.map(c => <option key={c.id} value={c.id}>{c.sector} ({c.students.length} alunos)</option>)}
+              </select>
+           </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1">
@@ -86,7 +103,7 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Setor *</label>
               <select required className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={formData.sector} onChange={(e) => setFormData({...formData, sector: e.target.value})}>
-                {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+                {sectors.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div className="space-y-1">
@@ -97,7 +114,7 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
               </datalist>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lição que está realizando? *</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lição Atual *</label>
               <input type="text" required placeholder="Nº ou título da lição" className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={formData.currentLesson} onChange={(e) => setFormData({...formData, currentLesson: e.target.value})} />
             </div>
           </div>
@@ -110,41 +127,35 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
             </div>
             <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl min-h-[60px] border border-slate-100">
               {students.map((s, i) => (
-                <span key={i} className="px-3 py-1 bg-white border rounded-xl text-xs font-black flex items-center gap-2 shadow-sm animate-in fade-in zoom-in">
+                <span key={i} className="px-3 py-1 bg-white border rounded-xl text-xs font-black flex items-center gap-2 shadow-sm">
                   {s} <button type="button" onClick={() => setStudents(students.filter((_, idx) => idx !== i))} className="text-danger hover:scale-125 transition-transform">✕</button>
                 </span>
               ))}
-              {students.length === 0 && <span className="text-slate-300 text-xs italic">Nenhum aluno adicionado à lista...</span>}
+              {students.length === 0 && <span className="text-slate-300 text-xs italic">Nenhum aluno na lista...</span>}
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações (Opcional)</label>
-            <textarea rows={2} className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none" placeholder="Relate o que ocorreu nesta classe bíblica..." value={formData.observations} onChange={(e) => setFormData({...formData, observations: e.target.value})} />
-          </div>
-
           <button type="submit" className="w-full py-5 bg-primary text-white rounded-premium font-black shadow-xl hover:scale-[1.01] active:scale-95 transition-all">
-            {formData.id ? 'Salvar Alterações da Classe' : 'Finalizar Registro de Classe'}
+            {formData.id ? 'Salvar Alterações' : 'Finalizar Registro de Classe'}
           </button>
         </form>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2">Classes Realizadas este Mês ({recentRecords.length})</h3>
+        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 italic">Classes deste Mês ({recentRecords.length})</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {recentRecords.map(record => (
-            <div key={record.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group">
+            <div key={record.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-md flex items-center justify-between">
               <div>
-                <p className="font-black text-slate-800">{record.students.length} Alunos Presentes</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">{record.studySeries} • {record.currentLesson}</p>
+                <p className="font-black text-slate-800">{record.students.length} Alunos</p>
+                <p className="text-[10px] text-purple-600 font-bold uppercase">{record.sector} • {record.currentLesson}</p>
               </div>
               <div className="flex gap-2">
-                 <button onClick={() => handleEdit(record)} className="p-2 bg-slate-50 text-primary rounded-xl hover:bg-primary hover:text-white transition-all">📝</button>
-                 <button onClick={async () => { if(confirm("Apagar este registro permanentemente?")) { await storageService.deleteClass(record.id); loadRecent(); } }} className="p-2 bg-slate-50 text-danger rounded-xl hover:bg-danger hover:text-white transition-all">✕</button>
+                 <button onClick={() => { setFormData({...record}); setStudents([...record.students]); window.scrollTo({top:0, behavior:'smooth'}); }} className="p-2 bg-slate-50 text-primary rounded-xl hover:bg-primary hover:text-white transition-all">📝</button>
+                 <button onClick={async () => { if(confirm("Remover registro?")) { await storageService.deleteClass(record.id); loadRecent(); } }} className="p-2 bg-slate-50 text-danger rounded-xl hover:bg-danger hover:text-white transition-all">✕</button>
               </div>
             </div>
           ))}
-          {recentRecords.length === 0 && <p className="text-slate-400 italic text-sm ml-2">Nenhuma classe bíblica registrada no período.</p>}
         </div>
       </div>
     </div>
