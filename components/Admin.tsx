@@ -42,7 +42,7 @@ const Admin: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h2 className="text-4xl font-black text-slate-800 tracking-tight italic">Administração</h2>
-          <p className="text-slate-500 font-medium italic">Gestão de interface e listas globais.</p>
+          <p className="text-slate-500 font-medium italic">Gestão de interface, relatórios e listas.</p>
         </div>
         <button onClick={handleSaveConfig} disabled={isSyncing} className="px-10 py-5 bg-primary text-white rounded-premium font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
            {isSyncing ? 'Sincronizando...' : 'Salvar Alterações'}
@@ -55,14 +55,14 @@ const Admin: React.FC = () => {
             <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4 text-center">
                     <p className="text-[10px] font-black uppercase text-slate-400">App Logo</p>
-                    <div onClick={() => logoInputRef.current?.click()} className="h-40 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
-                        {config.appLogo ? <img src={config.appLogo} className="w-full h-full object-cover" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Upload</span>}
+                    <div onClick={() => logoInputRef.current?.click()} className="h-32 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
+                        {config.appLogo ? <img src={config.appLogo} className="w-full h-full object-contain" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Upload</span>}
                     </div>
                     <input type="file" ref={logoInputRef} hidden accept="image/*" onChange={(e) => handleLogoUpload(e, 'app')} />
                 </div>
                 <div className="space-y-4 text-center">
                     <p className="text-[10px] font-black uppercase text-slate-400">Relatório Logo</p>
-                    <div onClick={() => reportLogoInputRef.current?.click()} className="h-40 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
+                    <div onClick={() => reportLogoInputRef.current?.click()} className="h-32 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
                         {config.reportLogo ? <img src={config.reportLogo} className="w-full h-full object-contain" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Upload</span>}
                     </div>
                     <input type="file" ref={reportLogoInputRef} hidden accept="image/*" onChange={(e) => handleLogoUpload(e, 'report')} />
@@ -76,21 +76,21 @@ const Admin: React.FC = () => {
                 <div className="grid grid-cols-4 gap-4 items-end">
                     <div className="col-span-3 space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase">Título Principal</label>
-                        <input className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={config.reportTitle} onChange={e => setConfig({...config, reportTitle: e.target.value})} />
+                        <input className="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none" value={config.reportTitle} onChange={e => setConfig({...config, reportTitle: e.target.value})} />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">Tam. Fonte</label>
-                        <input type="number" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={config.reportTitleFontSize} onChange={e => setConfig({...config, reportTitleFontSize: e.target.value})} />
+                        <label className="text-[10px] font-black text-slate-400 uppercase">Tam. Fonte (px)</label>
+                        <input type="number" className="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none" value={config.reportTitleFontSize} onChange={e => setConfig({...config, reportTitleFontSize: e.target.value})} />
                     </div>
                 </div>
                 <div className="grid grid-cols-4 gap-4 items-end">
                     <div className="col-span-3 space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase">Subtítulo</label>
-                        <input className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={config.reportSubtitle} onChange={e => setConfig({...config, reportSubtitle: e.target.value})} />
+                        <input className="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none" value={config.reportSubtitle} onChange={e => setConfig({...config, reportSubtitle: e.target.value})} />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">Tam. Fonte</label>
-                        <input type="number" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={config.reportSubtitleFontSize} onChange={e => setConfig({...config, reportSubtitleFontSize: e.target.value})} />
+                        <label className="text-[10px] font-black text-slate-400 uppercase">Tam. Fonte (px)</label>
+                        <input type="number" className="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none" value={config.reportSubtitleFontSize} onChange={e => setConfig({...config, reportSubtitleFontSize: e.target.value})} />
                     </div>
                 </div>
             </div>

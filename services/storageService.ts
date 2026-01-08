@@ -200,11 +200,11 @@ export const storageService = {
     if (!config.appLogo) config.appLogo = DEFAULT_APP_LOGO;
     if (!config.reportLogo) config.reportLogo = DEFAULT_REPORT_LOGO;
     
-    // Fallbacks para textos de relatório
+    // Fallbacks para configurações de relatório
     if (!config.reportTitle) config.reportTitle = 'Relatório de Atividades';
     if (!config.reportSubtitle) config.reportSubtitle = 'Gestão de Capelania e Ensino Bíblico';
-    if (!config.reportTitleFontSize) config.reportTitleFontSize = '30';
-    if (!config.reportSubtitleFontSize) config.reportSubtitleFontSize = '12';
+    if (!config.reportTitleFontSize) config.reportTitleFontSize = '32';
+    if (!config.reportSubtitleFontSize) config.reportSubtitleFontSize = '14';
     
     return config;
   },
