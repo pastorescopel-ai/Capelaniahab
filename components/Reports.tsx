@@ -57,18 +57,19 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     return names.size;
   }, [data]);
 
+  // Gráficos Individuais por Capelão
   const chartDataStudies = useMemo(() => {
     return allUsers.map(u => ({
       name: u.name.split(' ')[0],
       total: data.studies.filter(s => s.chaplainId === u.id).length
-    })).filter(d => d.total > 0);
+    })).filter(d => d.total >= 0); // Mostra até quem tem 0 para manter o card preenchido
   }, [allUsers, data.studies]);
 
   const chartDataClasses = useMemo(() => {
     return allUsers.map(u => ({
       name: u.name.split(' ')[0],
       total: data.classes.filter(c => c.chaplainId === u.id).length
-    })).filter(d => d.total > 0);
+    })).filter(d => d.total >= 0);
   }, [allUsers, data.classes]);
 
   const ReportContent = () => (
