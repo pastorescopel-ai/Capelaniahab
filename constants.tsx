@@ -12,6 +12,13 @@ export const VISIT_REASONS = [
   'Outros'
 ];
 
+export const STUDY_GUIDES = [
+  'Ouvindo a voz de Deus',
+  'Verdade e vida',
+  'Encontros com Jesus',
+  'A Bíblia Fala'
+];
+
 export const STUDY_STATUSES = [
   'Início da série',
   'Continuidade da série',

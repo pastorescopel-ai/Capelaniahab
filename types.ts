@@ -1,7 +1,7 @@
-
 export enum UserRole {
   ADMIN = 'ADMIN',
-  CHAPLAIN = 'CHAPLAIN'
+  CHAPLAIN = 'CHAPLAIN',
+  ASSISTANT = 'ASSISTANT'
 }
 
 export interface User {
@@ -13,28 +13,17 @@ export interface User {
   photoUrl?: string;
 }
 
-export interface Sector {
-  id: string;
-  name: string;
-}
-
-export interface MasterCollaborator {
-  id: string;
-  name: string;
-  sector?: string;
-}
-
 export interface BiblicalStudy {
   id: string;
-  date: string; // ISO Date String
+  date: string;
   year: number;
   month: number;
   sector: string;
   patientName: string;
   whatsapp: string;
   status: 'Início da série' | 'Continuidade da série' | 'Término da série';
-  studySeries?: string;
-  currentLesson?: string;
+  studySeries: string;
+  currentLesson: string;
   observations: string;
   chaplainId: string;
   createdAt: string;
@@ -42,13 +31,13 @@ export interface BiblicalStudy {
 
 export interface BiblicalClass {
   id: string;
-  date: string; // ISO Date String
+  date: string;
   year: number;
   month: number;
   sector: string;
   students: string[];
-  studySeries?: string;
-  currentLesson?: string;
+  studySeries: string;
+  currentLesson: string;
   observations: string;
   chaplainId: string;
   createdAt: string;
@@ -56,7 +45,7 @@ export interface BiblicalClass {
 
 export interface SmallGroup {
   id: string;
-  date: string; // ISO Date String
+  date: string;
   year: number;
   month: number;
   sector: string;
@@ -70,7 +59,7 @@ export interface SmallGroup {
 
 export interface StaffVisit {
   id: string;
-  date: string; // ISO Date String
+  date: string;
   year: number;
   month: number;
   sector: string;
@@ -78,7 +67,7 @@ export interface StaffVisit {
   reason: string;
   otherReason?: string;
   needsFollowUp: boolean;
-  observations?: string;
+  observations: string;
   chaplainId: string;
   createdAt: string;
 }
@@ -90,7 +79,7 @@ export interface CloudConfig {
   reportLogo?: string;
   customSectors: string[];
   customCollaborators: string[];
-  generalMessage?: string; // Mensagem manual definida pelo Admin
+  generalMessage?: string;
 }
 
 export interface ChangeRequest {
