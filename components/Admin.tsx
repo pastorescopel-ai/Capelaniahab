@@ -26,7 +26,6 @@ const Admin: React.FC = () => {
   };
 
   const handleSaveConfig = () => {
-    // Importação em massa: quebra por linha e remove vazios
     const sectors = sectorInput.split('\n').map(s => s.trim()).filter(s => s !== '');
     const collabs = collabInput.split('\n').map(c => c.trim()).filter(c => c !== '');
     
@@ -34,7 +33,7 @@ const Admin: React.FC = () => {
     setIsSyncing(true);
     storageService.saveConfig(newConfig).then(() => {
         setIsSyncing(false);
-        alert("Configurações e Listas salvas online!");
+        alert("Configurações salvas com sucesso!");
     });
   };
 
@@ -42,70 +41,77 @@ const Admin: React.FC = () => {
     <div className="space-y-10 pb-40 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-4xl font-black text-slate-800 tracking-tight italic">Administração do Sistema</h2>
-          <p className="text-slate-500 font-medium italic">Configuração de interface, logos e listas de apoio.</p>
+          <h2 className="text-4xl font-black text-slate-800 tracking-tight italic">Administração</h2>
+          <p className="text-slate-500 font-medium italic">Gestão de interface e listas globais.</p>
         </div>
         <button onClick={handleSaveConfig} disabled={isSyncing} className="px-10 py-5 bg-primary text-white rounded-premium font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
-           {isSyncing ? 'Sincronizando...' : 'Salvar Alterações Online'}
+           {isSyncing ? 'Sincronizando...' : 'Salvar Alterações'}
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Identidade Visual */}
         <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl space-y-8">
-            <h3 className="text-xl font-black text-slate-800 border-b pb-4 flex items-center gap-2">🖼️ Identidade Visual</h3>
+            <h3 className="text-xl font-black text-slate-800 border-b pb-4">🖼️ Logomarcas</h3>
             <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4 text-center">
-                    <p className="text-[10px] font-black uppercase text-slate-400">Logo do App (Login/Sidebar)</p>
+                    <p className="text-[10px] font-black uppercase text-slate-400">App Logo</p>
                     <div onClick={() => logoInputRef.current?.click()} className="h-40 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
-                        {config.appLogo ? <img src={config.appLogo} className="w-full h-full object-cover" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Alterar Logo App</span>}
-                        <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-black uppercase">Trocar Imagem</div>
+                        {config.appLogo ? <img src={config.appLogo} className="w-full h-full object-cover" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Upload</span>}
                     </div>
                     <input type="file" ref={logoInputRef} hidden accept="image/*" onChange={(e) => handleLogoUpload(e, 'app')} />
                 </div>
                 <div className="space-y-4 text-center">
-                    <p className="text-[10px] font-black uppercase text-slate-400">Logo do Relatório (PDF)</p>
+                    <p className="text-[10px] font-black uppercase text-slate-400">Relatório Logo</p>
                     <div onClick={() => reportLogoInputRef.current?.click()} className="h-40 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-slate-100 overflow-hidden relative group">
-                        {config.reportLogo ? <img src={config.reportLogo} className="w-full h-full object-contain" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Alterar Logo PDF</span>}
-                        <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-black uppercase">Trocar Imagem</div>
+                        {config.reportLogo ? <img src={config.reportLogo} className="w-full h-full object-contain" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Upload</span>}
                     </div>
                     <input type="file" ref={reportLogoInputRef} hidden accept="image/*" onChange={(e) => handleLogoUpload(e, 'report')} />
                 </div>
             </div>
         </div>
 
-        {/* Informação Geral */}
-        <div className="bg-slate-900 p-8 rounded-premium text-white shadow-2xl flex flex-col justify-center space-y-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl italic">CLOUD</div>
-            <h3 className="text-2xl font-black italic relative z-10">Conexão com a Nuvem</h3>
-            <p className="text-white/60 text-sm relative z-10">Seu sistema está sincronizado com a Planilha Google. Todas as listas importadas abaixo e os logos aparecerão para todos os membros da equipe instantaneamente após salvar.</p>
-            <div className="p-4 bg-white/10 rounded-2xl border border-white/10 space-y-2">
-                <p className="text-[10px] font-black uppercase text-white/40">URL do Banco de Dados</p>
-                <p className="text-xs font-mono break-all opacity-80">{config.databaseURL}</p>
+        <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl space-y-6">
+            <h3 className="text-xl font-black text-slate-800 border-b pb-4">📄 Cabeçalho do Relatório</h3>
+            <div className="space-y-4">
+                <div className="grid grid-cols-4 gap-4 items-end">
+                    <div className="col-span-3 space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase">Título Principal</label>
+                        <input className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={config.reportTitle} onChange={e => setConfig({...config, reportTitle: e.target.value})} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase">Tam. Fonte</label>
+                        <input type="number" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={config.reportTitleFontSize} onChange={e => setConfig({...config, reportTitleFontSize: e.target.value})} />
+                    </div>
+                </div>
+                <div className="grid grid-cols-4 gap-4 items-end">
+                    <div className="col-span-3 space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase">Subtítulo</label>
+                        <input className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={config.reportSubtitle} onChange={e => setConfig({...config, reportSubtitle: e.target.value})} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase">Tam. Fonte</label>
+                        <input type="number" className="w-full p-3 bg-slate-50 rounded-xl font-bold outline-none" value={config.reportSubtitleFontSize} onChange={e => setConfig({...config, reportSubtitleFontSize: e.target.value})} />
+                    </div>
+                </div>
             </div>
         </div>
       </div>
 
-      {/* Importação de Listas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl space-y-4">
-            <h3 className="text-xl font-black text-slate-800">🏥 Importar Setores (Massa)</h3>
-            <p className="text-xs text-slate-400 font-bold uppercase italic">Cole uma coluna do Excel ou Word (um por linha):</p>
+            <h3 className="text-xl font-black text-slate-800">🏥 Setores (Um por linha)</h3>
             <textarea 
-                className="w-full h-80 p-6 bg-slate-50 border rounded-3xl outline-none font-bold text-slate-600 focus:ring-4 focus:ring-primary/10 transition-all no-scrollbar"
+                className="w-full h-60 p-6 bg-slate-50 border rounded-3xl outline-none font-bold text-slate-600 no-scrollbar"
                 value={sectorInput}
                 onChange={e => setSectorInput(e.target.value)}
-                placeholder="Ex:&#10;UTI Adulto&#10;Pediatria&#10;Pronto Socorro&#10;Administrativo"
             />
         </div>
         <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl space-y-4">
-            <h3 className="text-xl font-black text-slate-800">👥 Importar Colaboradores (Massa)</h3>
-            <p className="text-xs text-slate-400 font-bold uppercase italic">Cole uma coluna do Excel ou Word (um por linha):</p>
+            <h3 className="text-xl font-black text-slate-800">👥 Colaboradores (Um por linha)</h3>
             <textarea 
-                className="w-full h-80 p-6 bg-slate-50 border rounded-3xl outline-none font-bold text-slate-600 focus:ring-4 focus:ring-primary/10 transition-all no-scrollbar"
+                className="w-full h-60 p-6 bg-slate-50 border rounded-3xl outline-none font-bold text-slate-600 no-scrollbar"
                 value={collabInput}
                 onChange={e => setCollabInput(e.target.value)}
-                placeholder="Ex:&#10;Dr. Ricardo Silva&#10;Enf. Maria Oliveira&#10;José dos Santos"
             />
         </div>
       </div>

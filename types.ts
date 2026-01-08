@@ -82,6 +82,11 @@ export interface CloudConfig {
   customCollaborators: string[];
   generalMessage?: string;
   dashboardGreeting?: string;
+  // Novos campos para customização do relatório
+  reportTitle?: string;
+  reportSubtitle?: string;
+  reportTitleFontSize?: string;
+  reportSubtitleFontSize?: string;
 }
 
 export interface ChangeRequest {
