@@ -21,7 +21,6 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
     { id: 'classes', label: 'Classe Bíblica', icon: Icons.Class, roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
     { id: 'pgs', label: 'Pequenos Grupos', icon: Icons.PG, roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
     { id: 'colaboradores', label: 'Colaboradores', icon: Icons.Staff, roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
-    { id: 'history', label: 'Histórico', icon: Icons.Sync, roles: [UserRole.ADMIN, UserRole.CHAPLAIN] },
     { id: 'reports', label: 'Relatórios', icon: Icons.Reports, roles: [UserRole.ADMIN] },
     { id: 'admin', label: 'Administração', icon: Icons.Admin, roles: [UserRole.ADMIN] },
     { id: 'users', label: 'Usuários', icon: Icons.Users, roles: [UserRole.ADMIN] },
@@ -44,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
           <h1 className="text-xl font-bold tracking-tight">CAPELANIA HAB</h1>
           <div className="flex items-center gap-1">
             <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-success animate-pulse' : 'bg-warning'}`}></span>
-            <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">
+            <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest text-nowrap">
               {isOnline ? 'Sistema Online' : 'Trabalhando Offline'}
             </span>
           </div>
@@ -90,9 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-3 text-white/50 hover:text-white transition-all font-medium text-sm group"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
+          <Icons.Plus />
           Sair da Conta
         </button>
       </div>

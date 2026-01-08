@@ -1,10 +1,8 @@
 
 import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig, ChangeRequest } from '../types';
 
-// =========================================================
-// CONFIGURAÇÃO INTERNA DO BACKEND (GOOGLE APPS SCRIPT)
-// =========================================================
-const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbyK6BbTSTpWUt7XNH73UDIdkruAympvXtW_yauVODPfl4GrvjAWpJ8X7Ntcar8AkIteOQ/exec"; 
+// ATENÇÃO: Substitua a URL abaixo pela URL da sua NOVA IMPLANTAÇÃO do Apps Script
+const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbzMLIaEf258zyRUm4ty_eWNl1VqwnfdZ0zw8OAc4LNj4xkKB6UcdCBrGKCXtuvd0P1bnQ/exec"; 
 
 const STORAGE_KEYS = {
   STUDIES: 'cap_studies',
@@ -22,7 +20,7 @@ const DEFAULT_USERS: User[] = [
 ];
 
 let lastWriteTimestamp = 0;
-const PULL_LOCK_MS = 12000; // 12 segundos para garantir que a planilha processe a exclusão física
+const PULL_LOCK_MS = 8000;
 
 export const storageService = {
   init() {
@@ -36,44 +34,28 @@ export const storageService = {
   },
 
   async pullFromCloud(): Promise<boolean> {
-    const url = INTERNAL_CLOUD_URL;
-    if (!url || url.includes("SUA_URL")) return false;
-
-    // Se houve gravação/exclusão recente, ignora o pull temporariamente
-    if (Date.now() - lastWriteTimestamp < PULL_LOCK_MS) {
-      return true; 
-    }
-
+    if (Date.now() - lastWriteTimestamp < PULL_LOCK_MS) return true;
     try {
-      const response = await fetch(`${url}?action=fetchAll`);
+      const response = await fetch(`${INTERNAL_CLOUD_URL}?action=fetchAll`);
       if (!response.ok) return false;
       const cloudData = await response.json();
-      
       if (cloudData) {
         if (cloudData.users) localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudData.users));
         if (cloudData.studies) localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(cloudData.studies));
         if (cloudData.classes) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudData.classes));
         if (cloudData.groups) localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cloudData.groups));
         if (cloudData.visits) localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(cloudData.visits));
-        if (cloudData.requests) localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(cloudData.requests));
         return true;
       }
       return false;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) { return false; }
   },
 
   async syncToCloud(type: string, data: any) {
-    const url = INTERNAL_CLOUD_URL;
-    if (!url) return;
-
     lastWriteTimestamp = Date.now();
-
     try {
       const user = this.getCurrentUser();
-      // O modo 'no-cors' impede o acesso à resposta, mas permite o envio POST cruzado para o Google
-      await fetch(url, {
+      await fetch(INTERNAL_CLOUD_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -84,36 +66,30 @@ export const storageService = {
           data: data
         })
       });
-    } catch (e) {
-      console.warn("Cloud Sync Error:", e);
-    }
+    } catch (e) { console.warn("Cloud Sync Error:", e); }
   },
 
   async deleteStudy(id: string) {
-    const data = this.getStudies();
-    const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(filtered)); 
+    const data = this.getStudies().filter(i => i.id !== id);
+    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(data)); 
     await this.syncToCloud('DELETE_STUDY', { id });
   },
 
   async deleteClass(id: string) {
-    const data = this.getClasses();
-    const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(filtered));
+    const data = this.getClasses().filter(i => i.id !== id);
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(data));
     await this.syncToCloud('DELETE_CLASS', { id });
   },
 
   async deleteGroup(id: string) {
-    const data = this.getGroups();
-    const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(filtered));
+    const data = this.getGroups().filter(i => i.id !== id);
+    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(data));
     await this.syncToCloud('DELETE_GROUP', { id });
   },
 
   async deleteVisit(id: string) {
-    const data = this.getVisits();
-    const filtered = data.filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(filtered));
+    const data = this.getVisits().filter(i => i.id !== id);
+    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(data));
     await this.syncToCloud('DELETE_VISIT', { id });
   },
 
@@ -145,9 +121,8 @@ export const storageService = {
     await this.syncToCloud('USUARIOS', user);
   },
   async deleteUser(userId: string) {
-    const users = this.getUsers();
-    const filtered = users.filter(u => u.id !== userId);
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
+    const users = this.getUsers().filter(u => u.id !== userId);
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     await this.syncToCloud('DELETE_USER', { id: userId });
   },
   getStudies(): BiblicalStudy[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDIES) || '[]'); },
@@ -184,16 +159,16 @@ export const storageService = {
   },
   getConfig(): CloudConfig { return JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG) || `{"databaseURL":"${INTERNAL_CLOUD_URL}","spreadsheetId":"","customSectors":[],"customCollaborators":[]}`); },
   async saveConfig(config: CloudConfig) {
-    const finalConfig = { ...config, databaseURL: INTERNAL_CLOUD_URL };
-    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(finalConfig));
-    await this.syncToCloud('CONFIGURACAO_SISTEMA', { ...finalConfig, appLogo: 'OMITIDO', reportLogo: 'OMITIDO' });
+    localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
+    await this.syncToCloud('CONFIGURACAO_SISTEMA', { ...config, appLogo: 'OMITIDO', reportLogo: 'OMITIDO' });
   },
   getRequests(): ChangeRequest[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]'); },
-  async addRequest(req: ChangeRequest) {
+  // Fix: added missing addRequest method for ChangeRequests
+  async addRequest(request: ChangeRequest) {
     const reqs = this.getRequests();
-    reqs.push(req);
+    reqs.push(request);
     localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(reqs));
-    await this.syncToCloud('SOLICITACOES_ALTERACAO', req);
+    await this.syncToCloud('SOLICITACAO_ALTERACAO', request);
   },
   async updateRequestStatus(id: string, status: 'APPROVED' | 'REJECTED') {
     const reqs = this.getRequests();
@@ -201,7 +176,6 @@ export const storageService = {
     if (idx >= 0) {
       reqs[idx].status = status;
       localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(reqs));
-      await this.syncToCloud('UPDATE_REQUEST', { id, status });
     }
   }
 };
