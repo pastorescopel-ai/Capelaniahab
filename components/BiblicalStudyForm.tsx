@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { storageService } from '../services/storageService';
-import { BiblicalStudy, User, HospitalUnit, BiblicalClass } from '../types';
+import { BiblicalStudy, User, BiblicalClass } from '../types';
 import { STUDY_GUIDES, STUDY_STATUSES } from '../constants';
 import SearchableSelect from './SearchableSelect';
 import SyncOverlay from './SyncOverlay';
@@ -10,7 +10,6 @@ interface Props { user: User; onSuccess: () => void; }
 
 const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [unit, setUnit] = useState<HospitalUnit>('HAB');
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     sector: '', patientName: '', whatsapp: '', status: STUDY_STATUSES[0],
@@ -18,7 +17,6 @@ const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
   });
 
   const config = storageService.getConfig();
-  const sectors = unit === 'HAB' ? config.customSectorsHAB : config.customSectorsHABA;
   const allRecords = storageService.getStudies();
   
   const myRecent = useMemo(() => {
@@ -45,7 +43,6 @@ const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
     const study: BiblicalStudy = {
       ...formData,
       id: Math.random().toString(36).substr(2, 9),
-      hospitalUnit: unit,
       year: date.getFullYear(),
       month: date.getMonth() + 1,
       chaplainId: user.id,
@@ -58,7 +55,7 @@ const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if(!confirm("Deseja realmente excluir?")) return;
+    if(!confirm("Excluir registro?")) return;
     setIsSyncing(true);
     await storageService.deleteStudy(id);
     setIsSyncing(false);
@@ -70,14 +67,9 @@ const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
       <SyncOverlay isVisible={isSyncing} />
       <form onSubmit={handleSave} className="bg-white p-8 rounded-premium shadow-xl space-y-6 text-slate-800">
         <h2 className="text-2xl font-black italic">📖 Novo Estudo Bíblico</h2>
-        <div className="flex gap-4">
-          {['HAB', 'HABA'].map((u: string) => (
-            <button key={u} type="button" onClick={() => setUnit(u as HospitalUnit)} className={`flex-1 py-3 rounded-xl font-black transition-all ${unit === u ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>UNIDADE {u}</button>
-          ))}
-        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input type="date" className="w-full p-4 bg-slate-50 border rounded-xl font-bold" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
-          <SearchableSelect label="Setor" options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} />
+          <SearchableSelect label="Setor" options={config.customSectors || []} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} />
           <input list="names" className="w-full p-4 bg-slate-50 border rounded-xl font-bold" value={formData.patientName} onChange={e => setFormData({...formData, patientName: e.target.value})} placeholder="Nome do Aluno..." />
           <datalist id="names">{existingNames.map((n: string) => <option key={n} value={n} />)}</datalist>
           <input className="w-full p-4 bg-slate-50 border rounded-xl font-bold" placeholder="WhatsApp" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} />
@@ -85,23 +77,21 @@ const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
             {STUDY_STATUSES.map((s: string) => <option key={s}>{s}</option>)}
           </select>
         </div>
-        <button type="submit" className="w-full py-5 bg-primary text-white rounded-premium font-black shadow-xl">SALVAR REGISTRO</button>
+        <button type="submit" className="w-full py-5 bg-primary text-white rounded-premium font-black shadow-xl">SALVAR ESTUDO</button>
       </form>
 
-      <div className="bg-white p-6 rounded-premium shadow-lg border border-slate-100">
-        <h3 className="text-[11px] font-black uppercase text-slate-400 mb-4 tracking-widest flex items-center gap-2">
-          <span className="w-2 h-2 bg-primary rounded-full"></span> Meus Lançamentos Recentes
-        </h3>
+      <div className="bg-white p-6 rounded-premium shadow-lg border">
+        <h3 className="text-[11px] font-black uppercase text-slate-400 mb-4 tracking-widest">Meus Lançamentos Recentes</h3>
         <div className="space-y-3">
           {myRecent.length > 0 ? myRecent.map((r: BiblicalStudy) => (
-            <div key={r.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <div key={r.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border">
               <div>
                 <p className="font-black text-slate-800">{r.patientName}</p>
                 <p className="text-[10px] font-bold text-primary uppercase">{r.sector} • {r.date.split('-').reverse().join('/')}</p>
               </div>
               <button onClick={() => handleDelete(r.id)} className="p-2 text-danger hover:bg-danger/10 rounded-xl">✕</button>
             </div>
-          )) : <p className="text-center py-4 text-xs font-bold text-slate-400 italic">Nenhum registro recente.</p>}
+          )) : <p className="text-center py-4 text-xs font-bold text-slate-400 italic">Nenhum registro.</p>}
         </div>
       </div>
     </div>

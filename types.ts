@@ -14,14 +14,11 @@ export interface User {
   photoUrl?: string;
 }
 
-export type HospitalUnit = 'HAB' | 'HABA';
-
 export interface BiblicalStudy {
   id: string;
   date: string;
   year: number;
   month: number;
-  hospitalUnit: HospitalUnit;
   sector: string;
   patientName: string;
   whatsapp: string;
@@ -38,7 +35,6 @@ export interface BiblicalClass {
   date: string;
   year: number;
   month: number;
-  hospitalUnit: HospitalUnit;
   sector: string;
   students: string[];
   studySeries: string;
@@ -53,7 +49,6 @@ export interface SmallGroup {
   date: string;
   year: number;
   month: number;
-  hospitalUnit: HospitalUnit;
   sector: string;
   name: string;
   leader: string;
@@ -68,7 +63,6 @@ export interface StaffVisit {
   date: string;
   year: number;
   month: number;
-  hospitalUnit: HospitalUnit;
   sector: string;
   staffName: string;
   reason: string;
@@ -84,26 +78,11 @@ export interface CloudConfig {
   spreadsheetId: string;
   appLogo?: string;
   reportLogo?: string;
-  customSectorsHAB: string[];
-  customSectorsHABA: string[];
+  customSectors: string[];
   customCollaborators: string[];
-  customPGsHAB: string[];
-  customPGsHABA: string[];
+  customPGs: string[];
   generalMessage?: string;
   dashboardGreeting?: string;
   reportTitle?: string;
   reportSubtitle?: string;
-}
-
-export interface ChangeRequest {
-  id: string;
-  recordId: string;
-  type: 'EDIT' | 'DELETE';
-  module: 'STUDY' | 'CLASS' | 'PG' | 'VISIT';
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  requestedBy: string;
-  requestedByName: string;
-  requestedAt: string;
-  reason?: string;
-  newData?: any;
 }

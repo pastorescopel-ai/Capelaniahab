@@ -5,14 +5,8 @@ export const getChaplaincyInsights = async (dataSummary: string) => {
   const FALLBACK_MSG = "A capelania é luz nos momentos de dor. O trabalho realizado em cada setor faz a diferença na vida dos pacientes e colaboradores. Siga em frente com fé!";
 
   try {
-    // Acesso seguro à variável de ambiente injetada pelo Vite/Vercel
-    const apiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
-
-    if (!apiKey) {
-      return "Sua dedicação é o que move a capelania. Cada atendimento é um passo para o conforto de quem precisa!";
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+    // Initialization using the mandatory process.env.API_KEY directly as per guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',

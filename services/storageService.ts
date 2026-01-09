@@ -150,10 +150,15 @@ export const storageService = {
 
   getConfig(): CloudConfig {
     const stored = localStorage.getItem(STORAGE_KEYS.CONFIG);
+    // Fix: Object literal updated to match CloudConfig interface and remove deprecated properties
     const def: CloudConfig = {
-      databaseURL: INTERNAL_CLOUD_URL, spreadsheetId: '',
-      customSectorsHAB: [], customSectorsHABA: [], customPGsHAB: [], customPGsHABA: [], customCollaborators: [],
-      reportTitle: 'RELATÓRIO MENSAL DE ATIVIDADES', reportSubtitle: 'CAPELANIA HOSPITALAR - HAB/HABA'
+      databaseURL: INTERNAL_CLOUD_URL, 
+      spreadsheetId: '',
+      customSectors: [], 
+      customPGs: [], 
+      customCollaborators: [],
+      reportTitle: 'RELATÓRIO MENSAL DE ATIVIDADES', 
+      reportSubtitle: 'CAPELANIA HOSPITALAR - HAB/HABA'
     };
     return stored ? JSON.parse(stored) : def;
   },

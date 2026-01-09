@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { storageService } from '../services/storageService';
-import { HospitalUnit, BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit } from '../types';
+import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit } from '../types';
 
 interface ReportsProps {
   user: any;
@@ -20,8 +20,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   const allSectors = useMemo(() => {
     const sectors = new Set<string>();
-    (config.customSectorsHAB || []).forEach((s: string) => sectors.add(s));
-    (config.customSectorsHABA || []).forEach((s: string) => sectors.add(s));
+    (config.customSectors || []).forEach((s: string) => sectors.add(s));
     return ['TODOS', ...Array.from(sectors).sort()];
   }, [config]);
 
@@ -45,41 +44,26 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   }, [startDate, endDate, selectedSector, allStudies, allClasses, allGroups, allVisits]);
 
   const stats = useMemo(() => {
-    const countUniqueStudents = (unit: HospitalUnit): number => {
-      const names = new Set<string>();
-      
-      (filtered.studies as BiblicalStudy[])
-        .filter((s: BiblicalStudy) => s.hospitalUnit === unit)
-        .forEach((s: BiblicalStudy) => {
-          if (s.patientName) names.add(s.patientName.toLowerCase().trim());
-        });
+    const names = new Set<string>();
+    
+    (filtered.studies as BiblicalStudy[]).forEach((s: BiblicalStudy) => {
+      if (s.patientName) names.add(s.patientName.toLowerCase().trim());
+    });
 
-      (filtered.classes as BiblicalClass[])
-        .filter((c: BiblicalClass) => c.hospitalUnit === unit)
-        .forEach((c: BiblicalClass) => {
-          if (c.students && Array.isArray(c.students)) {
-            c.students.forEach((st: string) => {
-              if (st) names.add(st.toLowerCase().trim());
-            });
-          }
+    (filtered.classes as BiblicalClass[]).forEach((c: BiblicalClass) => {
+      if (c.students && Array.isArray(c.students)) {
+        c.students.forEach((st: string) => {
+          if (st) names.add(st.toLowerCase().trim());
         });
-        
-      return names.size;
-    };
-
-    const countByUnit = (unit: HospitalUnit) => ({
-      students: countUniqueStudents(unit),
-      pgs: (filtered.groups as SmallGroup[]).filter((g: SmallGroup) => g.hospitalUnit === unit).length,
-      visits: (filtered.visits as StaffVisit[]).filter((v: StaffVisit) => v.hospitalUnit === unit).length,
-      classes: (filtered.classes as BiblicalClass[]).filter((c: BiblicalClass) => c.hospitalUnit === unit).length,
-      participantsInPGs: (filtered.groups as SmallGroup[])
-        .filter((g: SmallGroup) => g.hospitalUnit === unit)
-        .reduce((acc: number, curr: SmallGroup) => acc + (Number(curr.participantsCount) || 0), 0)
+      }
     });
 
     return {
-      hab: countByUnit('HAB'),
-      haba: countByUnit('HABA')
+      uniqueStudents: names.size,
+      totalPGs: filtered.groups.length,
+      totalVisits: filtered.visits.length,
+      totalClasses: filtered.classes.length,
+      participantsInPGs: (filtered.groups as SmallGroup[]).reduce((acc: number, curr: SmallGroup) => acc + (Number(curr.participantsCount) || 0), 0)
     };
   }, [filtered]);
 
@@ -103,33 +87,22 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
             <h1 style="margin: 0; color: #005a9c;">${config.reportTitle}</h1>
             <p style="margin: 0; font-weight: bold;">${config.reportSubtitle}</p>
             <p style="margin: 0;">Período: ${startDate} a ${endDate}</p>
-            <p style="margin: 0;">Setor: ${selectedSector}</p>
           </div>
         </div>
-        <div style="margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-          <div style="border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
-            <h3 style="color: #005a9c; border-bottom: 2px solid #005a9c;">UNIDADE HAB</h3>
-            <p><strong>Alunos Únicos:</strong> ${stats.hab.students}</p>
-            <p><strong>PGs Realizados:</strong> ${stats.hab.pgs}</p>
-            <p><strong>Total em PGs:</strong> ${stats.hab.participantsInPGs}</p>
-            <p><strong>Classes Realizadas:</strong> ${stats.hab.classes}</p>
-            <p><strong>Apoio Colaborador:</strong> ${stats.hab.visits}</p>
-          </div>
-          <div style="border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
-            <h3 style="color: #005a9c; border-bottom: 2px solid #005a9c;">UNIDADE HABA</h3>
-            <p><strong>Alunos Únicos:</strong> ${stats.haba.students}</p>
-            <p><strong>PGs Realizados:</strong> ${stats.haba.pgs}</p>
-            <p><strong>Total em PGs:</strong> ${stats.haba.participantsInPGs}</p>
-            <p><strong>Classes Realizadas:</strong> ${stats.haba.classes}</p>
-            <p><strong>Apoio Colaborador:</strong> ${stats.haba.visits}</p>
-          </div>
+        <div style="margin-top: 40px; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+          <h3 style="color: #005a9c; border-bottom: 2px solid #005a9c; margin-top: 0;">RESUMO GERAL</h3>
+          <p><strong>Alunos Únicos Atendidos:</strong> ${stats.uniqueStudents}</p>
+          <p><strong>Pequenos Grupos Realizados:</strong> ${stats.totalPGs}</p>
+          <p><strong>Pessoas Alcançadas em PGs:</strong> ${stats.participantsInPGs}</p>
+          <p><strong>Classes Bíblicas Realizadas:</strong> ${stats.totalClasses}</p>
+          <p><strong>Apoio a Colaboradores:</strong> ${stats.totalVisits}</p>
         </div>
         <h3 style="margin-top: 30px;">DISTRIBUIÇÃO DE PGs POR SETOR</h3>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
           <thead>
             <tr style="background: #f8fafc;">
               <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Setor</th>
-              <th style="border: 1px solid #ddd; padding: 10px; text-align: center;">Quantidade de PGs</th>
+              <th style="border: 1px solid #ddd; padding: 10px; text-align: center;">Quantidade</th>
             </tr>
           </thead>
           <tbody>
@@ -148,17 +121,17 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   return (
     <div className="space-y-8 pb-24">
-      <div className="bg-white p-6 rounded-premium shadow-xl border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-6 items-end text-slate-800">
+      <div className="bg-white p-6 rounded-premium shadow-xl border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
         <div className="space-y-1">
-          <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Data Início</label>
+          <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Início</label>
           <input type="date" className="w-full p-3 bg-slate-50 border rounded-xl font-bold" value={startDate} onChange={e => setStartDate(e.target.value)} />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Data Fim</label>
+          <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Fim</label>
           <input type="date" className="w-full p-3 bg-slate-50 border rounded-xl font-bold" value={endDate} onChange={e => setEndDate(e.target.value)} />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Filtrar por Setor</label>
+          <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Setor</label>
           <select 
             className="w-full p-3 bg-slate-50 border rounded-xl font-bold outline-none focus:border-primary transition-all"
             value={selectedSector}
@@ -167,20 +140,14 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
             {allSectors.map((s: string) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <button onClick={handlePrint} className="bg-primary text-white w-full py-4 rounded-xl font-black shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
+        <button onClick={handlePrint} className="bg-primary text-white w-full py-4 rounded-xl font-black shadow-lg hover:bg-slate-800 transition-all">
            GERAR PDF
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-primary text-white p-10 rounded-premium shadow-2xl relative overflow-hidden group">
-           <p className="text-xs font-black uppercase opacity-60 tracking-widest mb-2">Alunos Únicos HAB</p>
-           <h2 className="text-7xl font-black tracking-tighter">{stats.hab.students}</h2>
-        </div>
-        <div className="bg-slate-800 text-white p-10 rounded-premium shadow-2xl relative overflow-hidden group">
-           <p className="text-xs font-black uppercase opacity-60 tracking-widest mb-2">Alunos Únicos HABA</p>
-           <h2 className="text-7xl font-black tracking-tighter">{stats.haba.students}</h2>
-        </div>
+      <div className="bg-primary text-white p-10 rounded-premium shadow-2xl relative overflow-hidden group">
+         <p className="text-xs font-black uppercase opacity-60 tracking-widest mb-2">Total de Alunos Únicos</p>
+         <h2 className="text-7xl font-black tracking-tighter">{stats.uniqueStudents}</h2>
       </div>
     </div>
   );
