@@ -73,6 +73,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     } else {
       setSyncStatus('ERROR');
     }
+    // Mantém o status visual por um tempo antes de voltar ao IDLE
     setTimeout(() => setSyncStatus('IDLE'), 3000);
   };
 
@@ -153,9 +154,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
         
         <div className="flex items-center gap-3 bg-white px-6 py-3 rounded-full shadow-sm border border-slate-100">
-          <span className={`w-3 h-3 rounded-full ${syncStatus === 'SUCCESS' ? 'bg-success animate-pulse' : syncStatus === 'SYNCING' ? 'bg-amber-400 animate-spin' : 'bg-slate-300'}`}></span>
+          <span className={`w-3 h-3 rounded-full ${
+            syncStatus === 'ERROR' 
+              ? 'bg-danger' 
+              : syncStatus === 'SYNCING' 
+                ? 'bg-amber-400 animate-spin' 
+                : 'bg-success animate-pulse'
+          }`}></span>
           <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
-            {syncStatus === 'SYNCING' ? 'Sincronizando...' : 'Painel Sincronizado'}
+            {syncStatus === 'SYNCING' ? 'Sincronizando...' : 'Servidor Online'}
           </span>
         </div>
       </div>
