@@ -43,20 +43,25 @@ export const storageService = {
       if (!response.ok) return false;
       const cloudData = await response.json();
       if (cloudData) {
-        // Sincronizar Lista de Usuários
+        // Sincronizar Lista de Usuários (incluindo as fotos)
         if (cloudData.users) {
-          const combinedUsers = [...cloudData.users];
-          if (!combinedUsers.find((u: User) => u.email === MASTER_ADMIN.email)) {
-            combinedUsers.push(MASTER_ADMIN);
-          }
-          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(combinedUsers));
+          const cloudUsers: User[] = cloudData.users;
           
-          // ATUALIZAÇÃO DO PERFIL ONLINE:
-          // Se o usuário atual estiver na lista vinda da nuvem, atualiza os dados locais dele
+          // Garante que o Master Admin esteja sempre na lista
+          if (!cloudUsers.find(u => u.email === MASTER_ADMIN.email)) {
+            cloudUsers.push(MASTER_ADMIN);
+          }
+          
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudUsers));
+          
+          // ATUALIZAÇÃO DO PERFIL DO DISPOSITIVO:
+          // Se o usuário que está logado agora estiver na lista da nuvem, 
+          // atualizamos o objeto local dele (isso traz a foto nova do servidor)
           const currentUser = this.getCurrentUser();
           if (currentUser) {
-            const updatedProfile = combinedUsers.find((u: User) => u.id === currentUser.id);
+            const updatedProfile = cloudUsers.find(u => u.id === currentUser.id);
             if (updatedProfile) {
+              // Comparamos para ver se mudou algo (opcional, mas bom para performance)
               localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedProfile));
             }
           }
@@ -148,9 +153,9 @@ export const storageService = {
     return data ? JSON.parse(data) : null;
   },
   async updateCurrentUser(user: User) {
-    // Salva na lista geral e sincroniza com a nuvem
+    // Salva na lista geral de usuários e sincroniza o objeto completo (COM FOTO) na planilha
     await this.saveUser(user);
-    // Atualiza o cache de quem está logado no dispositivo
+    // Atualiza o estado da sessão local no dispositivo
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
   },
   getUsers(): User[] { 
@@ -164,6 +169,8 @@ export const storageService = {
     const index = users.findIndex(u => u.id === user.id);
     if (index >= 0) users[index] = user; else users.push(user);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    
+    // O envio para a nuvem contém o objeto usuário completo, incluindo a photoUrl comprimida
     await this.syncToCloud('USUARIOS', user);
   },
   async deleteUser(userId: string) {
