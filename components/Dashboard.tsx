@@ -60,27 +60,36 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const totalActivitiesCount = filteredData.s.length + filteredData.v.length + filteredData.c.length + filteredData.g.length;
 
-  // Função de sincronização reforçada
-  const refreshCloudData = async () => {
-    setSyncStatus('SYNCING');
+  // Função de sincronização reforçada para Mural e Saudação
+  const refreshCloudData = async (isBackground = false) => {
+    if (!isBackground) setSyncStatus('SYNCING');
+    
     const ok = await storageService.pullFromCloud();
     if (ok) {
       const newConfig = storageService.getConfig();
-      // Força a atualização do estado local com os dados globais da nuvem
+      // Atualiza o estado para refletir mudanças vindas de outros usuários
       setConfig(newConfig);
-      setTempGreeting(newConfig.dashboardGreeting || 'Shalom');
-      setTempInsight(newConfig.generalMessage || '');
-      setSyncStatus('SUCCESS');
+      
+      // Só atualiza os campos temporários se o usuário não estiver editando no momento
+      if (!isEditingGreeting) setTempGreeting(newConfig.dashboardGreeting || 'Shalom');
+      if (!isEditingInsight) setTempInsight(newConfig.generalMessage || '');
+      
+      if (!isBackground) setSyncStatus('SUCCESS');
     } else {
-      setSyncStatus('ERROR');
+      if (!isBackground) setSyncStatus('ERROR');
     }
-    // Mantém o status visual por um tempo antes de voltar ao IDLE
-    setTimeout(() => setSyncStatus('IDLE'), 3000);
+    
+    if (!isBackground) setTimeout(() => setSyncStatus('IDLE'), 3000);
   };
 
   useEffect(() => {
-    // Sincroniza ao montar o componente para pegar as mensagens globais mais recentes
+    // Sincronização inicial imediata
     refreshCloudData();
+
+    // Sincronização Automática (Polling): Atualiza a cada 60 segundos
+    const interval = setInterval(() => {
+      refreshCloudData(true);
+    }, 60000);
 
     if (!config.generalMessage && !localStorage.getItem('cap_cached_insight')) {
       getChaplaincyInsights(`Atividades Individuais: ${totalActivitiesCount}, Alunos Individuais: ${uniqueStudentsCount}`).then(res => {
@@ -88,6 +97,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         localStorage.setItem('cap_cached_insight', res);
       });
     }
+
+    return () => clearInterval(interval);
   }, [totalActivitiesCount, uniqueStudentsCount]);
 
   const handleSaveGreeting = async () => {
@@ -129,8 +140,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     onChange={e => setTempGreeting(e.target.value)}
                     autoFocus
                   />
-                  <button onClick={handleSaveGreeting} className="bg-success text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg hover:bg-green-600 transition-colors">SALVAR ONLINE</button>
-                  <button onClick={() => setIsEditingGreeting(false)} className="text-slate-400 text-xs font-bold px-2">Cancelar</button>
+                  <button onClick={handleSaveGreeting} className="bg-success text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg hover:bg-green-600 transition-colors">GRAVAR NA NUVEM</button>
+                  <button onClick={() => { setIsEditingGreeting(false); setTempGreeting(config.dashboardGreeting || 'Shalom'); }} className="text-slate-400 text-xs font-bold px-2">Cancelar</button>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 group">
@@ -164,7 +175,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 : 'bg-success animate-pulse'
           }`}></span>
           <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
-            {syncStatus === 'SYNCING' ? 'Sincronizando...' : 'Servidor Online'}
+            {syncStatus === 'SYNCING' ? 'Atualizando...' : 'Conexão Cloud Ativa'}
           </span>
         </div>
       </div>
@@ -248,8 +259,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     placeholder="Escreva a mensagem ministerial que todos verão..."
                   />
                   <div className="flex gap-2">
-                    <button onClick={handleSaveInsight} className="flex-1 py-3 bg-white text-primary rounded-xl font-black text-xs uppercase shadow-xl hover:bg-slate-100 transition-colors">ATUALIZAR MURAL</button>
-                    <button onClick={() => setIsEditingInsight(false)} className="px-4 py-3 bg-white/20 rounded-xl font-black text-xs uppercase hover:bg-white/30 transition-colors">Sair</button>
+                    <button onClick={handleSaveInsight} className="flex-1 py-3 bg-white text-primary rounded-xl font-black text-xs uppercase shadow-xl hover:bg-slate-100 transition-colors">ATUALIZAR TODOS</button>
+                    <button onClick={() => { setIsEditingInsight(false); setTempInsight(config.generalMessage || ''); }} className="px-4 py-3 bg-white/20 rounded-xl font-black text-xs uppercase hover:bg-white/30 transition-colors">Sair</button>
                   </div>
                 </div>
               ) : (
@@ -264,7 +275,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <span className="text-[9px] font-black uppercase opacity-60 tracking-widest">
                 {config.generalMessage ? 'Mensagem da Direção' : 'Insight da Inteligência Artificial'}
               </span>
-              <button onClick={refreshCloudData} className="p-1 hover:rotate-180 transition-transform duration-700">
+              <button onClick={() => refreshCloudData()} className="p-1 hover:rotate-180 transition-transform duration-700">
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                  </svg>

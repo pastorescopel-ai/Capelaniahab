@@ -23,10 +23,6 @@ const MASTER_ADMIN: User = {
   role: UserRole.ADMIN 
 };
 
-let lastWriteTimestamp = 0;
-// Reduzido para 1s para permitir atualizações mais dinâmicas das mensagens globais
-const PULL_LOCK_MS = 1000;
-
 export const storageService = {
   init() {
     const users = this.getUsers();
@@ -61,15 +57,16 @@ export const storageService = {
         
         if (cloudData.config) {
             const currentLocal = this.getConfig();
-            // Prioridade total para as strings de mensagem que vêm da nuvem para garantir visualização global
+            // LÓGICA CORRIGIDA: Prioridade total para o que vem da planilha para Mural e Saudação
             const merged: CloudConfig = { 
               ...currentLocal, 
               ...cloudData.config,
-              dashboardGreeting: cloudData.config.dashboardGreeting || currentLocal.dashboardGreeting,
-              generalMessage: cloudData.config.generalMessage || currentLocal.generalMessage
+              // Se existir na nuvem (mesmo que string vazia), substitui o local
+              dashboardGreeting: cloudData.config.dashboardGreeting !== undefined ? cloudData.config.dashboardGreeting : currentLocal.dashboardGreeting,
+              generalMessage: cloudData.config.generalMessage !== undefined ? cloudData.config.generalMessage : currentLocal.generalMessage
             };
             
-            // Preservar logos locais se a nuvem enviar vazio (evita quebra visual)
+            // Preservar logomarcas locais apenas se a nuvem não enviar nada (evitar reset de imagem base64)
             if (!cloudData.config.appLogo) merged.appLogo = currentLocal.appLogo;
             if (!cloudData.config.reportLogo) merged.reportLogo = currentLocal.reportLogo;
             
@@ -82,7 +79,6 @@ export const storageService = {
   },
 
   async syncToCloud(type: string, data: any) {
-    lastWriteTimestamp = Date.now();
     try {
       const user = this.getCurrentUser();
       await fetch(INTERNAL_CLOUD_URL, {
@@ -209,19 +205,14 @@ export const storageService = {
     if (!config.appLogo) config.appLogo = DEFAULT_APP_LOGO;
     if (!config.reportLogo) config.reportLogo = DEFAULT_REPORT_LOGO;
     
-    if (!config.reportTitle) config.reportTitle = 'Relatório de Atividades';
-    if (!config.reportSubtitle) config.reportSubtitle = 'Gestão de Capelania e Ensino Bíblico';
-    if (!config.reportTitleFontSize) config.reportTitleFontSize = '32';
-    if (!config.reportSubtitleFontSize) config.reportSubtitleFontSize = '14';
-    
     return config;
   },
   async saveConfig(config: CloudConfig) {
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-    // Sincroniza todas as chaves de configuração para a nuvem
+    // Sincroniza a configuração (incluindo Mural e Saudação) com a planilha
     await this.syncToCloud('CONFIGURACAO_SISTEMA', { 
       ...config, 
-      appLogo: '', // Strings base64 são muito grandes para células individuais do Sheets, melhor não enviar no POST direto
+      appLogo: '', // Não enviamos imagem base64 para evitar estouro de célula na planilha
       reportLogo: '' 
     });
   },
