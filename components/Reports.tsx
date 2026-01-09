@@ -46,11 +46,11 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const stats = useMemo(() => {
     const names = new Set<string>();
     
-    (filtered.studies as BiblicalStudy[]).forEach((s: BiblicalStudy) => {
+    filtered.studies.forEach((s: BiblicalStudy) => {
       if (s.patientName) names.add(s.patientName.toLowerCase().trim());
     });
 
-    (filtered.classes as BiblicalClass[]).forEach((c: BiblicalClass) => {
+    filtered.classes.forEach((c: BiblicalClass) => {
       if (c.students && Array.isArray(c.students)) {
         c.students.forEach((st: string) => {
           if (st) names.add(st.toLowerCase().trim());
@@ -63,7 +63,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       totalPGs: filtered.groups.length,
       totalVisits: filtered.visits.length,
       totalClasses: filtered.classes.length,
-      participantsInPGs: (filtered.groups as SmallGroup[]).reduce((acc: number, curr: SmallGroup) => acc + (Number(curr.participantsCount) || 0), 0)
+      participantsInPGs: filtered.groups.reduce((acc: number, curr: SmallGroup) => acc + (Number(curr.participantsCount) || 0), 0)
     };
   }, [filtered]);
 
