@@ -79,8 +79,8 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const uniqueClassesTotal = useMemo(() => {
     const classKeys = new Set<string>();
     data.classes.forEach(c => {
-      const key = `${c.sector}-${[...c.students].sort().join(',')}`.toLowerCase();
-      classKeys.add(key);
+      const key = `${c.sector}-${[...c.students].sort().join(',')}`;
+      classKeys.add(key.toLowerCase());
     });
     return classKeys.size;
   }, [data.classes]);
@@ -98,7 +98,9 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       : allUsers.filter(u => u.id === selectedChaplain);
 
     return usersToMonitor.map(u => {
-      const uStudies = data.studies.filter(s => s.chaplainId === u.id).length;
+      const uStudiesList = data.studies.filter(s => s.chaplainId === u.id);
+      const uStudies = uStudiesList.length;
+      
       const uClassesList = data.classes.filter(c => c.chaplainId === u.id);
       
       const uUniqueClassesKeys = new Set<string>();
@@ -110,6 +112,13 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
       const uGroups = data.groups.filter(g => g.chaplainId === u.id).length;
       const uVisits = data.visits.filter(v => v.chaplainId === u.id).length;
+
+      // Cálculo de Alunos Únicos do Capelão Específico
+      const uAlunosNames = new Set<string>();
+      uStudiesList.forEach(s => s.patientName && uAlunosNames.add(s.patientName.trim().toLowerCase()));
+      uClassesList.forEach(c => c.students.forEach(st => st && uAlunosNames.add(st.trim().toLowerCase())));
+      const uAlunosCount = uAlunosNames.size;
+
       const total = uStudies + uUniqueClassesCount + uGroups + uVisits;
 
       return { 
@@ -117,6 +126,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         metrics: [
           { label: 'Estudos', val: uStudies, icon: '📖', color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Classes', val: uUniqueClassesCount, icon: '🎓', color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'Alunos', val: uAlunosCount, icon: '👤', color: 'text-amber-600', bg: 'bg-amber-50' },
           { label: 'Grupos', val: uGroups, icon: '🏠', color: 'text-orange-600', bg: 'bg-orange-50' },
           { label: 'Visitas', val: uVisits, icon: '🤝', color: 'text-green-600', bg: 'bg-green-50' }
         ],
@@ -222,12 +232,12 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                    </div>
                 </div>
                 
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-5 gap-2">
                    {item.metrics.map((m, i) => (
-                     <div key={i} className={`${m.bg} p-4 rounded-2xl border border-white flex flex-col items-center justify-center shadow-sm`}>
-                        <span className="text-lg mb-1">{m.icon}</span>
-                        <p className="text-[7px] font-black uppercase text-slate-400 mb-1">{m.label}</p>
-                        <p className={`text-xl font-black ${m.color}`}>{m.val}</p>
+                     <div key={i} className={`${m.bg} p-3 rounded-2xl border border-white flex flex-col items-center justify-center shadow-sm text-center`}>
+                        <span className="text-base mb-0.5">{m.icon}</span>
+                        <p className="text-[7px] font-black uppercase text-slate-400 mb-0.5">{m.label}</p>
+                        <p className={`text-base font-black ${m.color}`}>{m.val}</p>
                      </div>
                    ))}
                 </div>
@@ -321,7 +331,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                    {item.metrics.map((m, i) => (
                      <div key={i} className={`${m.bg} p-4 rounded-3xl border border-white flex flex-col items-center justify-center text-center shadow-sm`}>
                         <span className="text-xl mb-1">{m.icon}</span>
