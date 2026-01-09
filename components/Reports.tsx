@@ -55,7 +55,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     storageService.pullFromCloud().then(() => loadFilteredData());
   }, [loadFilteredData]);
 
-  // Total de Estudantes: Soma todos os alunos de TODOS os usuários dentro do período (ignora filtro de capelão para este card específico)
+  // Total de Estudantes: Soma todos os alunos de TODOS os usuários dentro do período
   const totalGlobalStudents = useMemo(() => {
     const start = new Date(startDate).getTime();
     const end = new Date(endDate).getTime() + 86399999;
@@ -113,7 +113,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       const uGroups = data.groups.filter(g => g.chaplainId === u.id).length;
       const uVisits = data.visits.filter(v => v.chaplainId === u.id).length;
 
-      // Cálculo de Alunos Únicos do Capelão Específico
+      // Cálculo de Alunos Únicos do Capelão Específico (Estudos + Classes)
       const uAlunosNames = new Set<string>();
       uStudiesList.forEach(s => s.patientName && uAlunosNames.add(s.patientName.trim().toLowerCase()));
       uClassesList.forEach(c => c.students.forEach(st => st && uAlunosNames.add(st.trim().toLowerCase())));
@@ -235,8 +235,8 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                 <div className="grid grid-cols-5 gap-2">
                    {item.metrics.map((m, i) => (
                      <div key={i} className={`${m.bg} p-3 rounded-2xl border border-white flex flex-col items-center justify-center shadow-sm text-center`}>
-                        <span className="text-base mb-0.5">{m.icon}</span>
-                        <p className="text-[7px] font-black uppercase text-slate-400 mb-0.5">{m.label}</p>
+                        <span className="text-lg mb-1">{m.icon}</span>
+                        <p className="text-[7px] font-black uppercase text-slate-400 mb-1">{m.label}</p>
                         <p className={`text-base font-black ${m.color}`}>{m.val}</p>
                      </div>
                    ))}
@@ -262,21 +262,21 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 print:hidden">
         <div>
           <h2 className="text-4xl font-black text-slate-800 tracking-tight italic">Relatórios Estratégicos</h2>
-          <p className="text-slate-500 font-medium">Gestão de indicadores e produtividade individual.</p>
+          <p className="text-slate-500 font-medium italic">Gestão de indicadores e produtividade individual.</p>
         </div>
         
         <div className="flex flex-wrap items-end gap-4 bg-white p-6 rounded-premium border border-slate-100 shadow-xl">
            <div className="space-y-1">
              <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Início</label>
-             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="block px-4 py-2 bg-slate-50 rounded-xl font-bold outline-none" />
+             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="block px-4 py-2 bg-slate-50 border rounded-xl font-bold outline-none" />
            </div>
            <div className="space-y-1">
              <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Fim</label>
-             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="block px-4 py-2 bg-slate-50 rounded-xl font-bold outline-none" />
+             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="block px-4 py-2 bg-slate-50 border rounded-xl font-bold outline-none" />
            </div>
            <div className="space-y-1">
              <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Equipe</label>
-             <select value={selectedChaplain} onChange={e => setSelectedChaplain(e.target.value)} className="block px-4 py-2 bg-slate-50 rounded-xl font-bold outline-none min-w-[150px]">
+             <select value={selectedChaplain} onChange={e => setSelectedChaplain(e.target.value)} className="block px-4 py-2 bg-slate-50 border rounded-xl font-bold outline-none min-w-[150px]">
                 <option value="ALL">Todos os Capelães</option>
                 {allUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
              </select>
