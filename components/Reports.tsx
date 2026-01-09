@@ -86,8 +86,8 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid #005a9c; padding-bottom: 20px;">
           <img src="${config.reportLogo || ''}" style="height: 80px;" />
           <div style="text-align: right;">
-            <h1 style="margin: 0; color: #005a9c;">${config.reportTitle || 'RELATÓRIO'}</h1>
-            <p style="margin: 0; font-weight: bold;">${config.reportSubtitle || ''}</p>
+            <h1 style="margin: 0; color: #005a9c;">${config.reportTitle || 'RELATÓRIO MENSAL'}</h1>
+            <p style="margin: 0; font-weight: bold;">${config.reportSubtitle || 'CAPELANIA HOSPITALAR'}</p>
             <p style="margin: 0;">Período: ${startDate} a ${endDate}</p>
           </div>
         </div>
@@ -99,23 +99,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           <p><strong>Classes Bíblicas Realizadas:</strong> ${stats.totalClasses}</p>
           <p><strong>Apoio a Colaboradores:</strong> ${stats.totalVisits}</p>
         </div>
-        <h3 style="margin-top: 30px;">DISTRIBUIÇÃO DE PGs POR SETOR</h3>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-          <thead>
-            <tr style="background: #f8fafc;">
-              <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Setor</th>
-              <th style="border: 1px solid #ddd; padding: 10px; text-align: center;">Quantidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${Object.entries(pgsBySector).map(([s, v]) => `
-              <tr>
-                <td style="border: 1px solid #ddd; padding: 10px;">${s}</td>
-                <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${v}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
       </div>
     `;
     window.print();
@@ -143,12 +126,12 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           </select>
         </div>
         <button onClick={handlePrint} className="bg-primary text-white w-full py-4 rounded-xl font-black shadow-lg hover:bg-slate-800 transition-all">
-           GERAR PDF
+           GERAR RELATÓRIO
         </button>
       </div>
 
       <div className="bg-primary text-white p-10 rounded-premium shadow-2xl relative overflow-hidden group">
-         <p className="text-xs font-black uppercase opacity-60 tracking-widest mb-2">Total de Alunos Únicos</p>
+         <p className="text-xs font-black uppercase opacity-60 tracking-widest mb-2">Impacto no Período (Alunos Únicos)</p>
          <h2 className="text-7xl font-black tracking-tighter">{stats.uniqueStudents}</h2>
       </div>
     </div>
