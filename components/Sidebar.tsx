@@ -13,7 +13,6 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogout }) => {
   const config = storageService.getConfig();
-  const isOnline = config.databaseURL && config.spreadsheetId;
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard, roles: [UserRole.ADMIN, UserRole.CHAPLAIN, UserRole.ASSISTANT] },
@@ -32,7 +31,6 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
   return (
     <div className="hidden md:flex flex-col w-72 bg-primary h-screen border-r border-white/10 p-6 shadow-2xl text-white">
       <div className="flex items-center gap-3 mb-10 px-2">
-        {/* Container da Logo sem Bordas e com preenchimento total */}
         <div className="w-14 h-14 shrink-0 overflow-hidden flex items-center justify-center">
           {config.appLogo ? (
             <img src={config.appLogo} alt="Logo" className="w-full h-full object-contain" />
@@ -43,13 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogo
           )}
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight leading-tight">CAPELANIA HAB</h1>
-          <div className="flex items-center gap-1">
-            <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-success animate-pulse' : 'bg-warning'}`}></span>
-            <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest text-nowrap">
-              {isOnline ? 'Sistema Online' : 'Trabalhando Offline'}
-            </span>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight leading-tight uppercase italic">CAPELANIA HAB</h1>
         </div>
       </div>
 

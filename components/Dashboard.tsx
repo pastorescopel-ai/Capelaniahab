@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { storageService } from '../services/storageService';
 import { getChaplaincyInsights } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -60,16 +60,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const totalActivitiesCount = filteredData.s.length + filteredData.v.length + filteredData.c.length + filteredData.g.length;
 
-  useEffect(() => {
+  // Função de sincronização reforçada
+  const refreshCloudData = async () => {
     setSyncStatus('SYNCING');
-    storageService.pullFromCloud().then(ok => {
-      setSyncStatus(ok ? 'SUCCESS' : 'ERROR');
+    const ok = await storageService.pullFromCloud();
+    if (ok) {
       const newConfig = storageService.getConfig();
       setConfig(newConfig);
       setTempGreeting(newConfig.dashboardGreeting || 'Shalom');
       setTempInsight(newConfig.generalMessage || '');
-      setTimeout(() => setSyncStatus('IDLE'), 3000);
-    });
+      setSyncStatus('SUCCESS');
+    } else {
+      setSyncStatus('ERROR');
+    }
+    setTimeout(() => setSyncStatus('IDLE'), 3000);
+  };
+
+  useEffect(() => {
+    refreshCloudData();
 
     if (!config.generalMessage && !localStorage.getItem('cap_cached_insight')) {
       getChaplaincyInsights(`Atividades Individuais: ${totalActivitiesCount}, Alunos Individuais: ${uniqueStudentsCount}`).then(res => {
@@ -80,17 +88,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, [totalActivitiesCount, uniqueStudentsCount]);
 
   const handleSaveGreeting = async () => {
-    const newConfig = { ...config, dashboardGreeting: tempGreeting };
+    setSyncStatus('SYNCING');
+    const currentConfig = storageService.getConfig();
+    const newConfig = { ...currentConfig, dashboardGreeting: tempGreeting };
     await storageService.saveConfig(newConfig);
     setConfig(newConfig);
     setIsEditingGreeting(false);
+    setSyncStatus('SUCCESS');
+    setTimeout(() => setSyncStatus('IDLE'), 2000);
   };
 
   const handleSaveInsight = async () => {
-    const newConfig = { ...config, generalMessage: tempInsight };
+    setSyncStatus('SYNCING');
+    const currentConfig = storageService.getConfig();
+    const newConfig = { ...currentConfig, generalMessage: tempInsight };
     await storageService.saveConfig(newConfig);
     setConfig(newConfig);
     setIsEditingInsight(false);
+    setSyncStatus('SUCCESS');
+    setTimeout(() => setSyncStatus('IDLE'), 2000);
   };
 
   return (
@@ -101,33 +117,35 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             {user.photoUrl ? <img src={user.photoUrl} alt="Perfil" className="w-full h-full object-cover" /> : <span className="text-3xl">👤</span>}
           </div>
           <div>
-            <div className="flex items-center gap-2 group">
+            <div className="flex items-center gap-2">
               {isEditingGreeting && user.role === UserRole.ADMIN ? (
                 <div className="flex items-center gap-2 animate-in slide-in-from-left-2">
                   <input 
-                    className="text-2xl font-black bg-white border border-primary/30 rounded-xl px-3 py-1 outline-none text-slate-800 shadow-inner" 
+                    className="text-2xl font-black bg-white border-2 border-primary rounded-xl px-3 py-1 outline-none text-slate-800 shadow-inner" 
                     value={tempGreeting} 
                     onChange={e => setTempGreeting(e.target.value)}
                     autoFocus
                   />
-                  <button onClick={handleSaveGreeting} className="bg-success text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg">SALVAR</button>
-                  <button onClick={() => setIsEditingGreeting(false)} className="text-slate-400 text-xs font-bold px-2">Sair</button>
+                  <button onClick={handleSaveGreeting} className="bg-success text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg hover:bg-green-600 transition-colors">SALVAR ONLINE</button>
+                  <button onClick={() => setIsEditingGreeting(false)} className="text-slate-400 text-xs font-bold px-2">Cancelar</button>
                 </div>
               ) : (
-                <h2 className="text-3xl font-black text-slate-800 tracking-tight italic flex items-center gap-3">
-                  {config.dashboardGreeting || 'Shalom'}, {user.name.split(' ')[0]}!
+                <div className="flex items-center gap-3 group">
+                  <h2 className="text-3xl font-black text-slate-800 tracking-tight italic">
+                    {config.dashboardGreeting || 'Shalom'}, {user.name.split(' ')[0]}!
+                  </h2>
                   {user.role === UserRole.ADMIN && (
                     <button 
                       onClick={() => setIsEditingGreeting(true)} 
-                      className="p-1.5 bg-slate-100 text-slate-400 hover:text-primary rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                      title="Editar Saudação Global"
+                      className="p-2 bg-primary text-white rounded-xl shadow-lg hover:scale-110 active:scale-95 transition-all flex items-center justify-center"
+                      title="Alterar Saudação para Todos"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                       </svg>
                     </button>
                   )}
-                </h2>
+                </div>
               )}
             </div>
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cargo: {user.role}</p>
@@ -137,7 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         <div className="flex items-center gap-3 bg-white px-6 py-3 rounded-full shadow-sm border border-slate-100">
           <span className={`w-3 h-3 rounded-full ${syncStatus === 'SUCCESS' ? 'bg-success animate-pulse' : syncStatus === 'SYNCING' ? 'bg-amber-400 animate-spin' : 'bg-slate-300'}`}></span>
           <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
-            {syncStatus === 'SYNCING' ? 'Sincronizando...' : 'Sistema Online'}
+            {syncStatus === 'SYNCING' ? 'Sincronizando...' : 'Painel Sincronizado'}
           </span>
         </div>
       </div>
@@ -173,7 +191,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-8 rounded-premium border border-slate-100 shadow-xl">
-           <h3 className="text-sm font-black uppercase mb-6">Minha Produtividade por Área</h3>
+           <h3 className="text-sm font-black uppercase mb-6 text-slate-400">Minha Produtividade por Área</h3>
            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                  <BarChart data={[
@@ -191,22 +209,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
            </div>
         </div>
 
-        <div className="bg-primary p-10 rounded-premium text-white shadow-2xl flex flex-col justify-between relative overflow-hidden group">
+        <div className="bg-primary p-10 rounded-premium text-white shadow-2xl flex flex-col justify-between relative overflow-hidden group min-h-[320px]">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
-            <div className="relative z-10 space-y-4">
+            <div className="relative z-10 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">💡</span>
-                  <h3 className="text-lg font-black italic tracking-tight uppercase">Insight Individual</h3>
+                  <h3 className="text-lg font-black italic tracking-tight uppercase">Mural de Insights</h3>
                 </div>
                 {user.role === UserRole.ADMIN && !isEditingInsight && (
                   <button 
                     onClick={() => setIsEditingInsight(true)} 
-                    className="p-1.5 bg-white/10 text-white/50 hover:text-white rounded-lg transition-all"
-                    title="Editar Mensagem para Todos"
+                    className="p-3 bg-white text-primary rounded-xl shadow-xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center"
+                    title="Editar Mural Global"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
                   </button>
                 )}
@@ -215,24 +233,33 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               {isEditingInsight ? (
                 <div className="space-y-4 animate-in zoom-in-95 duration-200">
                   <textarea 
-                    className="w-full h-32 bg-white/10 border border-white/20 rounded-xl p-3 text-sm outline-none font-medium text-white placeholder-white/30"
+                    className="w-full h-32 bg-white/10 border-2 border-white/30 rounded-xl p-4 text-sm outline-none font-bold text-white placeholder-white/40 focus:border-white/60 transition-all"
                     value={tempInsight}
                     onChange={e => setTempInsight(e.target.value)}
-                    placeholder="Escreva a mensagem ministerial global que todos os usuários verão..."
+                    placeholder="Escreva a mensagem ministerial que todos verão..."
                   />
                   <div className="flex gap-2">
-                    <button onClick={handleSaveInsight} className="flex-1 py-2 bg-white text-primary rounded-xl font-black text-xs uppercase shadow-lg">Atualizar Mural</button>
-                    <button onClick={() => setIsEditingInsight(false)} className="px-4 py-2 bg-white/10 rounded-xl font-black text-xs uppercase">Cancelar</button>
+                    <button onClick={handleSaveInsight} className="flex-1 py-3 bg-white text-primary rounded-xl font-black text-xs uppercase shadow-xl hover:bg-slate-100 transition-colors">ATUALIZAR MURAL</button>
+                    <button onClick={() => setIsEditingInsight(false)} className="px-4 py-3 bg-white/20 rounded-xl font-black text-xs uppercase hover:bg-white/30 transition-colors">Sair</button>
                   </div>
                 </div>
               ) : (
-                <p className="text-white/90 italic leading-relaxed font-medium">
-                  "{config.generalMessage || insight}"
-                </p>
+                <div className="space-y-4">
+                  <p className="text-white text-xl font-medium leading-relaxed italic border-l-4 border-white/20 pl-4 py-2">
+                    "{config.generalMessage || insight}"
+                  </p>
+                </div>
               )}
             </div>
-            <div className="mt-8 pt-6 border-t border-white/10 text-[9px] font-black uppercase opacity-50 tracking-widest relative z-10">
-              {config.generalMessage ? 'Mensagem da Direção' : 'Seu Desempenho via Gemini IA'}
+            <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between relative z-10">
+              <span className="text-[9px] font-black uppercase opacity-60 tracking-widest">
+                {config.generalMessage ? 'Mensagem da Direção' : 'Insight da Inteligência Artificial'}
+              </span>
+              <button onClick={refreshCloudData} className="p-1 hover:rotate-180 transition-transform duration-700">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                 </svg>
+              </button>
             </div>
         </div>
       </div>

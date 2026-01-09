@@ -24,7 +24,8 @@ const MASTER_ADMIN: User = {
 };
 
 let lastWriteTimestamp = 0;
-const PULL_LOCK_MS = 5000;
+// Reduzido para 1s para permitir atualizações mais dinâmicas das mensagens globais
+const PULL_LOCK_MS = 1000;
 
 export const storageService = {
   init() {
@@ -41,7 +42,9 @@ export const storageService = {
   },
 
   async pullFromCloud(): Promise<boolean> {
+    // Throttling leve para evitar excesso de requisições, mas sensível o suficiente para atualizações
     if (Date.now() - lastWriteTimestamp < PULL_LOCK_MS) return true;
+    
     try {
       const response = await fetch(`${INTERNAL_CLOUD_URL}?action=fetchAll`);
       if (!response.ok) return false;
@@ -60,10 +63,19 @@ export const storageService = {
         if (cloudData.visits) localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(cloudData.visits));
         
         if (cloudData.config) {
-            const current = this.getConfig();
-            const merged = { ...current, ...cloudData.config };
-            if (!cloudData.config.appLogo) merged.appLogo = current.appLogo;
-            if (!cloudData.config.reportLogo) merged.reportLogo = current.reportLogo;
+            const currentLocal = this.getConfig();
+            // Prioridade total para as strings de mensagem que vêm da nuvem
+            const merged = { 
+              ...currentLocal, 
+              ...cloudData.config,
+              dashboardGreeting: cloudData.config.dashboardGreeting || currentLocal.dashboardGreeting,
+              generalMessage: cloudData.config.generalMessage || currentLocal.generalMessage
+            };
+            
+            // Preservar logos se a nuvem enviar vazio (devido ao limite de células do Sheets)
+            if (!cloudData.config.appLogo) merged.appLogo = currentLocal.appLogo;
+            if (!cloudData.config.reportLogo) merged.reportLogo = currentLocal.reportLogo;
+            
             localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(merged));
         }
         return true;
@@ -200,7 +212,6 @@ export const storageService = {
     if (!config.appLogo) config.appLogo = DEFAULT_APP_LOGO;
     if (!config.reportLogo) config.reportLogo = DEFAULT_REPORT_LOGO;
     
-    // Fallbacks para configurações de relatório
     if (!config.reportTitle) config.reportTitle = 'Relatório de Atividades';
     if (!config.reportSubtitle) config.reportSubtitle = 'Gestão de Capelania e Ensino Bíblico';
     if (!config.reportTitleFontSize) config.reportTitleFontSize = '32';
@@ -210,7 +221,12 @@ export const storageService = {
   },
   async saveConfig(config: CloudConfig) {
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-    await this.syncToCloud('CONFIGURACAO_SISTEMA', { ...config, appLogo: '', reportLogo: '' });
+    // Sincroniza todas as chaves de configuração, exceto as logos em base64 (muito grandes para uma célula de planilha)
+    await this.syncToCloud('CONFIGURACAO_SISTEMA', { 
+      ...config, 
+      appLogo: '', 
+      reportLogo: '' 
+    });
   },
   getRequests(): ChangeRequest[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]'); },
   async addRequest(request: ChangeRequest) {
