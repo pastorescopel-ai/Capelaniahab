@@ -2,7 +2,6 @@
 import React, { useState, useRef } from 'react';
 import { storageService } from '../services/storageService';
 import { User } from '../types';
-// Fixed: Imported Icons from constants to resolve reference error on line 100
 import { Icons } from '../constants';
 
 interface ProfileProps {
@@ -16,11 +15,17 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [photoUrl, setPhotoUrl] = useState(user.photoUrl || '');
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Limite de tamanho para evitar problemas no Google Sheets (máx 50kb recomendado para strings base64 em células)
+      if (file.size > 100000) {
+        alert("A imagem é muito grande. Escolha uma foto menor (máx 100kb).");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoUrl(reader.result as string);
@@ -29,10 +34,9 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Verificação de senha se algum campo for preenchido
     if (newPassword || currentPassword || confirmPassword) {
       if (currentPassword !== user.password) {
         alert("Senha atual incorreta.");
@@ -48,6 +52,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
       }
     }
 
+    setIsSaving(true);
     const updatedUser = { 
       ...user, 
       name, 
@@ -55,15 +60,20 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
       password: newPassword ? newPassword : user.password 
     };
     
-    storageService.updateCurrentUser(updatedUser);
-    onUpdate(updatedUser);
-    
-    // Limpar campos de senha
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    
-    alert("Perfil atualizado com sucesso!");
+    try {
+      await storageService.updateCurrentUser(updatedUser);
+      onUpdate(updatedUser);
+      
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      
+      alert("Perfil atualizado e sincronizado na nuvem!");
+    } catch (err) {
+      alert("Erro ao sincronizar perfil.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -74,7 +84,6 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
       </div>
 
       <form onSubmit={handleSave} className="bg-white p-8 md:p-12 rounded-premium border border-slate-100 shadow-xl space-y-12">
-        {/* Photo Section */}
         <div className="flex flex-col items-center gap-6 pb-8 border-b border-slate-50">
           <div className="relative">
             <div 
@@ -105,12 +114,11 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
           <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handlePhotoUpload} />
           <div className="text-center">
              <p className="font-bold text-slate-700">Sua Foto de Perfil</p>
-             <p className="text-sm text-slate-400">Visível no dashboard e nos seus registros.</p>
+             <p className="text-sm text-slate-400">Salve para sincronizar com todos os seus dispositivos.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Informações Básicas */}
           <div className="space-y-6">
             <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
               <span>📝</span> Dados Pessoais
@@ -133,7 +141,6 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
             </div>
           </div>
 
-          {/* Segurança */}
           <div className="space-y-6">
             <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
               <span>🔒</span> Alterar Senha
@@ -173,9 +180,10 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
 
         <button 
           type="submit"
-          className="w-full py-5 bg-primary text-white rounded-premium font-black text-xl shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          disabled={isSaving}
+          className="w-full py-5 bg-primary text-white rounded-premium font-black text-xl shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
         >
-          Atualizar Meu Perfil
+          {isSaving ? 'Sincronizando Perfil...' : 'Salvar e Sincronizar Perfil'}
         </button>
       </form>
     </div>

@@ -43,13 +43,25 @@ export const storageService = {
       if (!response.ok) return false;
       const cloudData = await response.json();
       if (cloudData) {
+        // Sincronizar Lista de Usuários
         if (cloudData.users) {
           const combinedUsers = [...cloudData.users];
           if (!combinedUsers.find((u: User) => u.email === MASTER_ADMIN.email)) {
             combinedUsers.push(MASTER_ADMIN);
           }
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(combinedUsers));
+          
+          // ATUALIZAÇÃO DO PERFIL ONLINE:
+          // Se o usuário atual estiver na lista vinda da nuvem, atualiza os dados locais dele
+          const currentUser = this.getCurrentUser();
+          if (currentUser) {
+            const updatedProfile = combinedUsers.find((u: User) => u.id === currentUser.id);
+            if (updatedProfile) {
+              localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedProfile));
+            }
+          }
         }
+
         if (cloudData.studies) localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(cloudData.studies));
         if (cloudData.classes) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudData.classes));
         if (cloudData.groups) localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cloudData.groups));
@@ -57,8 +69,6 @@ export const storageService = {
         
         if (cloudData.config) {
             const currentLocal = this.getConfig();
-            // PRIORIDADE ABSOLUTA PARA MURAL E SAUDAÇÃO DA NUVEM
-            // Isso garante que se o ADM mudou na planilha, muda para todos.
             const merged: CloudConfig = { 
               ...currentLocal, 
               ...cloudData.config,
@@ -66,7 +76,6 @@ export const storageService = {
               generalMessage: cloudData.config.generalMessage !== undefined ? cloudData.config.generalMessage : currentLocal.generalMessage
             };
             
-            // Preservar logos se a nuvem não enviar (evita quebra visual por strings longas)
             if (!cloudData.config.appLogo) merged.appLogo = currentLocal.appLogo;
             if (!cloudData.config.reportLogo) merged.reportLogo = currentLocal.reportLogo;
             
@@ -81,7 +90,6 @@ export const storageService = {
   async syncToCloud(type: string, data: any) {
     try {
       const user = this.getCurrentUser();
-      // Usamos text/plain para evitar problemas de CORS com Google Apps Script
       await fetch(INTERNAL_CLOUD_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -139,8 +147,10 @@ export const storageService = {
     const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
     return data ? JSON.parse(data) : null;
   },
-  updateCurrentUser(user: User) {
-    this.saveUser(user);
+  async updateCurrentUser(user: User) {
+    // Salva na lista geral e sincroniza com a nuvem
+    await this.saveUser(user);
+    // Atualiza o cache de quem está logado no dispositivo
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
   },
   getUsers(): User[] { 
@@ -176,6 +186,7 @@ export const storageService = {
     const index = data.findIndex(i => i.id === cls.id);
     if (index >= 0) data[index] = cls; else data.push(cls);
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(data));
+    await this.syncToCloud('DELETE_CLASS', { id: cls.id }); // Sincroniza substituição
     await this.syncToCloud('CLASSES_BIBLICAS', cls);
   },
   getGroups(): SmallGroup[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.GROUPS) || '[]'); },
@@ -205,7 +216,6 @@ export const storageService = {
     
     if (!config.appLogo) config.appLogo = DEFAULT_APP_LOGO;
     if (!config.reportLogo) config.reportLogo = DEFAULT_REPORT_LOGO;
-    
     if (!config.reportTitle) config.reportTitle = 'Relatório de Atividades';
     if (!config.reportSubtitle) config.reportSubtitle = 'Gestão de Capelania e Ensino Bíblico';
     if (!config.reportTitleFontSize) config.reportTitleFontSize = '32';
@@ -215,7 +225,6 @@ export const storageService = {
   },
   async saveConfig(config: CloudConfig) {
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-    // Sincroniza textos da saudação e mural imediatamente com a nuvem
     await this.syncToCloud('CONFIGURACAO_SISTEMA', { 
       dashboardGreeting: config.dashboardGreeting,
       generalMessage: config.generalMessage,
