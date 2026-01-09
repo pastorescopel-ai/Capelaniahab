@@ -1,131 +1,105 @@
 
-import React, { useState, useEffect } from 'react';
-import { STUDY_STATUSES, STUDY_GUIDES } from '../constants';
+import React, { useState, useMemo } from 'react';
 import { storageService } from '../services/storageService';
 import { BiblicalStudy, User, HospitalUnit } from '../types';
+import { STUDY_GUIDES, STUDY_STATUSES } from '../constants';
 import SearchableSelect from './SearchableSelect';
 import SyncOverlay from './SyncOverlay';
 
-interface BiblicalStudyFormProps {
-  user: User;
-  onSuccess: () => void;
-}
+interface Props { user: User; onSuccess: () => void; }
 
-const BiblicalStudyForm: React.FC<BiblicalStudyFormProps> = ({ user, onSuccess }) => {
+const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [hospitalUnit, setHospitalUnit] = useState<HospitalUnit>('HAB');
-  
-  const config = storageService.getConfig();
-  const currentSectors = hospitalUnit === 'HAB' ? config.customSectorsHAB : config.customSectorsHABA;
-
+  const [unit, setUnit] = useState<HospitalUnit>('HAB');
   const [formData, setFormData] = useState({
-    id: '',
     date: new Date().toISOString().split('T')[0],
-    sector: '',
-    patientName: '',
-    whatsapp: '',
-    status: STUDY_STATUSES[0] as any,
-    studySeries: STUDY_GUIDES[0],
-    currentLesson: '',
-    observations: ''
+    sector: '', patientName: '', whatsapp: '', status: STUDY_STATUSES[0],
+    studySeries: STUDY_GUIDES[0], currentLesson: '', observations: ''
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.sector || !formData.patientName) {
-      alert("Selecione a unidade, o setor e o nome.");
-      return;
-    }
+  const config = storageService.getConfig();
+  const sectors = unit === 'HAB' ? config.customSectorsHAB : config.customSectorsHABA;
+  const allRecords = storageService.getStudies();
+  const myRecent = useMemo(() => allRecords.filter(r => r.chaplainId === user.id).slice(-5).reverse(), [allRecords]);
+  
+  const existingNames = useMemo(() => {
+    const names = new Set<string>();
+    allRecords.forEach(r => names.add(r.patientName));
+    return Array.from(names);
+  }, [allRecords]);
 
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.sector || !formData.patientName) return alert("Preencha setor e nome.");
     setIsSyncing(true);
-    const dateObj = new Date(formData.date);
+    const date = new Date(formData.date);
     const study: BiblicalStudy = {
       ...formData,
-      id: formData.id || Math.random().toString(36).substr(2, 9),
-      hospitalUnit,
-      year: dateObj.getFullYear(),
-      month: dateObj.getMonth() + 1,
+      id: Math.random().toString(36).substr(2, 9),
+      hospitalUnit: unit,
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
       chaplainId: user.id,
       createdAt: new Date().toISOString()
     } as BiblicalStudy;
-    
-    try {
-      await storageService.saveStudy(study);
-      setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', patientName: '', whatsapp: '', status: STUDY_STATUSES[0] as any, studySeries: STUDY_GUIDES[0], currentLesson: '', observations: '' });
-      onSuccess();
-      alert("Estudo bíblico registrado com sucesso!");
-    } finally {
-      setIsSyncing(false);
-    }
+    await storageService.saveStudy(study);
+    setIsSyncing(false);
+    setFormData({...formData, patientName: '', whatsapp: '', currentLesson: '', observations: ''});
+    onSuccess();
+  };
+
+  const handleDelete = async (id: string) => {
+    if(!confirm("Excluir definitivamente?")) return;
+    setIsSyncing(true);
+    await storageService.deleteStudy(id);
+    setIsSyncing(false);
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <SyncOverlay isVisible={isSyncing} />
-      <div className="bg-white p-6 md:p-8 rounded-premium border border-slate-100 shadow-xl">
-        <h2 className="text-2xl font-black text-slate-800 mb-8 border-b pb-4 italic">📖 Novo Estudo Bíblico</h2>
-        
-        <div className="flex gap-4 mb-8">
-          {(['HAB', 'HABA'] as HospitalUnit[]).map(unit => (
-            <button key={unit} type="button" onClick={() => { setHospitalUnit(unit); setFormData({...formData, sector: ''}); }} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${hospitalUnit === unit ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
-              UNIDADE {unit}
-            </button>
+      <form onSubmit={handleSave} className="bg-white p-8 rounded-premium shadow-xl space-y-6">
+        <h2 className="text-2xl font-black italic">📖 Novo Estudo Bíblico</h2>
+        <div className="flex gap-4">
+          {['HAB', 'HABA'].map(u => (
+            <button key={u} type="button" onClick={() => setUnit(u as any)} className={`flex-1 py-3 rounded-xl font-black ${unit === u ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`}>UNIDADE {u}</button>
           ))}
         </div>
-
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-1">
-            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Data</label>
-            <input type="date" required className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="date" className="p-4 bg-slate-50 rounded-xl font-bold" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+          <SearchableSelect label="Setor" options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} />
           
-          <SearchableSelect 
-            label={`Setor ${hospitalUnit}`} 
-            options={currentSectors} 
-            value={formData.sector} 
-            onChange={val => setFormData({...formData, sector: val})} 
-            placeholder="Escolha o setor..."
-            required
-          />
-
           <div className="space-y-1">
-            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Nome do Aluno</label>
-            <input type="text" required placeholder="Nome completo..." className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.patientName} onChange={(e) => setFormData({...formData, patientName: e.target.value})} />
+            <label className="text-[10px] font-black uppercase opacity-40">Nome do Aluno (Existente ou Novo)</label>
+            <input list="names" className="w-full p-4 bg-slate-50 border rounded-xl font-bold" value={formData.patientName} onChange={e => setFormData({...formData, patientName: e.target.value})} placeholder="Digite ou selecione..." />
+            <datalist id="names">{existingNames.map(n => <option key={n} value={n} />)}</datalist>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">WhatsApp</label>
-            <input type="tel" placeholder="(00) 00000-0000" className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.whatsapp} onChange={(e) => setFormData({...formData, whatsapp: e.target.value})} />
-          </div>
+          <input className="p-4 bg-slate-50 rounded-xl font-bold" placeholder="WhatsApp" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} />
+          <select className="p-4 bg-slate-50 rounded-xl font-bold" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
+            {STUDY_STATUSES.map(s => <option key={s}>{s}</option>)}
+          </select>
+          <select className="p-4 bg-slate-50 rounded-xl font-bold" value={formData.studySeries} onChange={e => setFormData({...formData, studySeries: e.target.value})}>
+            {STUDY_GUIDES.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <textarea className="w-full p-4 bg-slate-50 border rounded-xl font-bold" placeholder="Observações" value={formData.observations} onChange={e => setFormData({...formData, observations: e.target.value})} />
+        <button type="submit" className="w-full py-4 bg-primary text-white rounded-xl font-black shadow-lg">SALVAR ESTUDO</button>
+      </form>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Status do Estudo</label>
-            <select className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value as any})}>
-              {STUDY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Série / Guia</label>
-            <select className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.studySeries} onChange={(e) => setFormData({...formData, studySeries: e.target.value})}>
-              {STUDY_GUIDES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Lição Atual</label>
-            <input type="text" placeholder="Ex: Lição 05" className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.currentLesson} onChange={(e) => setFormData({...formData, currentLesson: e.target.value})} />
-          </div>
-
-          <div className="md:col-span-2 space-y-1">
-            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Observações / Motivos de Oração</label>
-            <textarea rows={3} className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.observations} onChange={(e) => setFormData({...formData, observations: e.target.value})} placeholder="Detalhes do atendimento..." />
-          </div>
-
-          <button type="submit" disabled={isSyncing} className="md:col-span-2 py-5 bg-primary text-white rounded-premium font-black shadow-xl hover:bg-slate-800 transition-all">
-            {isSyncing ? 'Sincronizando...' : 'Registrar Estudo Bíblico'}
-          </button>
-        </form>
+      <div className="bg-white p-6 rounded-premium shadow-lg">
+        <h3 className="text-xs font-black uppercase opacity-40 mb-4">Meus Lançamentos Recentes</h3>
+        <div className="space-y-2">
+          {myRecent.map(r => (
+            <div key={r.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border">
+              <div>
+                <p className="font-bold text-sm">{r.patientName}</p>
+                <p className="text-[10px] opacity-40">{r.sector} - {r.date}</p>
+              </div>
+              <button onClick={() => handleDelete(r.id)} className="text-danger p-2 hover:bg-danger/10 rounded-lg">✕</button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

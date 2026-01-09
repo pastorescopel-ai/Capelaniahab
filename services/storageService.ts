@@ -1,5 +1,5 @@
 
-import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig, ChangeRequest } from '../types';
+import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig } from '../types';
 import { DEFAULT_APP_LOGO, DEFAULT_REPORT_LOGO } from '../constants';
 
 const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbyrXCpJxxbzTxz7dGXRM_uv9edvM_SgE-xYHiXaF8GUghDbxyNTR_1xpS3LhEulFXa5/exec"; 
@@ -10,9 +10,8 @@ const STORAGE_KEYS = {
   GROUPS: 'cap_groups',
   USERS: 'cap_users',
   CONFIG: 'cap_config',
-  REQUESTS: 'cap_requests',
-  CURRENT_USER: 'cap_current_user',
-  VISITS: 'cap_visits'
+  VISITS: 'cap_visits',
+  CURRENT_USER: 'cap_current_user'
 };
 
 const MASTER_ADMIN: User = { 
@@ -30,7 +29,6 @@ export const storageService = {
       users.push(MASTER_ADMIN);
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     }
-    
     const currentConfig = this.getConfig();
     if (currentConfig.databaseURL !== INTERNAL_CLOUD_URL) {
       this.saveConfig({ ...currentConfig, databaseURL: INTERNAL_CLOUD_URL });
@@ -45,36 +43,14 @@ export const storageService = {
       if (cloudData) {
         if (cloudData.users) {
           const cloudUsers: User[] = cloudData.users;
-          if (!cloudUsers.find(u => u.email === MASTER_ADMIN.email)) {
-            cloudUsers.push(MASTER_ADMIN);
-          }
+          if (!cloudUsers.find(u => u.email === MASTER_ADMIN.email)) cloudUsers.push(MASTER_ADMIN);
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudUsers));
-          const currentUser = this.getCurrentUser();
-          if (currentUser) {
-            const updatedProfile = cloudUsers.find(u => u.id === currentUser.id);
-            if (updatedProfile) {
-              localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedProfile));
-            }
-          }
         }
-
         if (cloudData.studies) localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(cloudData.studies));
         if (cloudData.classes) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudData.classes));
         if (cloudData.groups) localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cloudData.groups));
         if (cloudData.visits) localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(cloudData.visits));
-        
-        if (cloudData.config) {
-            const currentLocal = this.getConfig();
-            const merged: CloudConfig = { 
-              ...currentLocal, 
-              ...cloudData.config,
-              customSectorsHAB: cloudData.config.customSectorsHAB || currentLocal.customSectorsHAB || [],
-              customSectorsHABA: cloudData.config.customSectorsHABA || currentLocal.customSectorsHABA || [],
-              customPGsHAB: cloudData.config.customPGsHAB || currentLocal.customPGsHAB || [],
-              customPGsHABA: cloudData.config.customPGsHABA || currentLocal.customPGsHABA || [],
-            };
-            localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(merged));
-        }
+        if (cloudData.config) localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify({ ...this.getConfig(), ...cloudData.config }));
         return true;
       }
       return false;
@@ -89,135 +65,108 @@ export const storageService = {
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
-          type: type,
+          type,
           timestamp: new Date().toISOString(),
           executedBy: user?.name || 'Sistema',
-          data: data
+          data
         })
       });
-    } catch (e) { console.warn("Cloud Sync Error:", e); }
+    } catch (e) { console.warn("Sync Error", e); }
   },
 
-  async deleteStudy(id: string) {
-    const data = this.getStudies().filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(data)); 
-    await this.syncToCloud('DELETE_STUDY', { id });
-  },
-
-  async deleteClass(id: string) {
-    const data = this.getClasses().filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(data));
-    await this.syncToCloud('DELETE_CLASS', { id });
-  },
-
-  async deleteGroup(id: string) {
-    const data = this.getGroups().filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(data));
-    await this.syncToCloud('DELETE_GROUP', { id });
-  },
-
-  async deleteVisit(id: string) {
-    const data = this.getVisits().filter(i => i.id !== id);
-    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(data));
-    await this.syncToCloud('DELETE_VISIT', { id });
-  },
-
-  login(email: string, password?: string): User | null {
-    const users = this.getUsers();
-    if (email.toLowerCase() === MASTER_ADMIN.email.toLowerCase() && password === MASTER_ADMIN.password) {
-       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(MASTER_ADMIN));
-       return MASTER_ADMIN;
-    }
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-    if (user) {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-      return user;
-    }
-    return null;
-  },
-
-  logout() { localStorage.removeItem(STORAGE_KEYS.CURRENT_USER); },
-  getCurrentUser(): User | null {
-    const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    return data ? JSON.parse(data) : null;
-  },
+  getUsers(): User[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]'); },
+  getCurrentUser(): User | null { return JSON.parse(localStorage.getItem(STORAGE_KEYS.CURRENT_USER) || 'null'); },
+  
   async updateCurrentUser(user: User) {
     await this.saveUser(user);
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
   },
-  getUsers(): User[] { 
-    const stored = localStorage.getItem(STORAGE_KEYS.USERS);
-    return stored ? JSON.parse(stored) : [MASTER_ADMIN];
-  },
+
   async saveUser(user: User) {
     const users = this.getUsers();
-    const index = users.findIndex(u => u.id === user.id);
-    if (index >= 0) users[index] = user; else users.push(user);
+    const idx = users.findIndex(u => u.id === user.id);
+    if (idx >= 0) users[idx] = user; else users.push(user);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     await this.syncToCloud('USUARIOS', user);
   },
-  async deleteUser(userId: string) {
-    if (userId === MASTER_ADMIN.id) return;
-    const users = this.getUsers().filter(u => u.id !== userId);
+
+  async deleteUser(id: string) {
+    const users = this.getUsers().filter(u => u.id !== id);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    await this.syncToCloud('DELETE_USER', { id: userId });
+    await this.syncToCloud('DELETE_USER', { id });
   },
+
   getStudies(): BiblicalStudy[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDIES) || '[]'); },
-  async saveStudy(study: BiblicalStudy) {
-    const data = this.getStudies();
-    const index = data.findIndex(i => i.id === study.id);
-    if (index >= 0) data[index] = study; else data.push(study);
-    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(data));
-    await this.syncToCloud('ESTUDOS_BIBLICOS', study);
+  async saveStudy(data: BiblicalStudy) {
+    const all = this.getStudies();
+    const idx = all.findIndex(i => i.id === data.id);
+    if (idx >= 0) all[idx] = data; else all.push(data);
+    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(all));
+    await this.syncToCloud('ESTUDOS_BIBLICOS', data);
   },
+  async deleteStudy(id: string) {
+    localStorage.setItem(STORAGE_KEYS.STUDIES, JSON.stringify(this.getStudies().filter(i => i.id !== id)));
+    await this.syncToCloud('DELETE_STUDY', { id });
+  },
+
   getClasses(): BiblicalClass[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.CLASSES) || '[]'); },
-  async saveClass(cls: BiblicalClass) {
-    const data = this.getClasses();
-    const index = data.findIndex(i => i.id === cls.id);
-    if (index >= 0) data[index] = cls; else data.push(cls);
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(data));
-    await this.syncToCloud('CLASSES_BIBLICAS', cls);
+  async saveClass(data: BiblicalClass) {
+    const all = this.getClasses();
+    const idx = all.findIndex(i => i.id === data.id);
+    if (idx >= 0) all[idx] = data; else all.push(data);
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(all));
+    await this.syncToCloud('CLASSES_BIBLICAS', data);
   },
+  async deleteClass(id: string) {
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(this.getClasses().filter(i => i.id !== id)));
+    await this.syncToCloud('DELETE_CLASS', { id });
+  },
+
   getGroups(): SmallGroup[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.GROUPS) || '[]'); },
-  async saveGroup(group: SmallGroup) {
-    const data = this.getGroups();
-    const index = data.findIndex(i => i.id === group.id);
-    if (index >= 0) data[index] = group; else data.push(group);
-    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(data));
-    await this.syncToCloud('PEQUENOS_GRUPOS', group);
+  async saveGroup(data: SmallGroup) {
+    const all = this.getGroups();
+    const idx = all.findIndex(i => i.id === data.id);
+    if (idx >= 0) all[idx] = data; else all.push(data);
+    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(all));
+    await this.syncToCloud('PEQUENOS_GRUPOS', data);
   },
+  async deleteGroup(id: string) {
+    localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(this.getGroups().filter(i => i.id !== id)));
+    await this.syncToCloud('DELETE_GROUP', { id });
+  },
+
   getVisits(): StaffVisit[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.VISITS) || '[]'); },
-  async saveVisit(visit: StaffVisit) {
-    const data = this.getVisits();
-    const index = data.findIndex(i => i.id === visit.id);
-    if (index >= 0) data[index] = visit; else data.push(visit);
-    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(data));
-    await this.syncToCloud('VISITAS_COLABORADORES', visit);
+  async saveVisit(data: StaffVisit) {
+    const all = this.getVisits();
+    const idx = all.findIndex(i => i.id === data.id);
+    if (idx >= 0) all[idx] = data; else all.push(data);
+    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(all));
+    await this.syncToCloud('VISITAS_COLABORADORES', data);
   },
-  getConfig(): CloudConfig { 
+  async deleteVisit(id: string) {
+    localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(this.getVisits().filter(i => i.id !== id)));
+    await this.syncToCloud('DELETE_VISIT', { id });
+  },
+
+  getConfig(): CloudConfig {
     const stored = localStorage.getItem(STORAGE_KEYS.CONFIG);
-    const config: CloudConfig = stored ? JSON.parse(stored) : {
-        databaseURL: INTERNAL_CLOUD_URL,
-        spreadsheetId: '',
-        customSectorsHAB: [],
-        customSectorsHABA: [],
-        customPGsHAB: [],
-        customPGsHABA: [],
-        customCollaborators: []
+    const def: CloudConfig = {
+      databaseURL: INTERNAL_CLOUD_URL, spreadsheetId: '',
+      customSectorsHAB: [], customSectorsHABA: [], customPGsHAB: [], customPGsHABA: [], customCollaborators: [],
+      reportTitle: 'RELATÓRIO MENSAL DE ATIVIDADES', reportSubtitle: 'CAPELANIA HOSPITALAR - HAB/HABA'
     };
-    if (!config.appLogo) config.appLogo = DEFAULT_APP_LOGO;
-    if (!config.reportLogo) config.reportLogo = DEFAULT_REPORT_LOGO;
-    return config;
+    return stored ? JSON.parse(stored) : def;
   },
   async saveConfig(config: CloudConfig) {
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
     await this.syncToCloud('CONFIGURACAO_SISTEMA', config);
   },
-  getRequests(): ChangeRequest[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]'); },
-  async addRequest(request: ChangeRequest) {
-    const reqs = this.getRequests();
-    reqs.push(request);
-    localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(reqs));
-    await this.syncToCloud('SOLICITACAO_ALTERACAO', request);
-  }
+
+  login(email: string, pass: string): User | null {
+    const users = this.getUsers();
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
+    if (user) localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+    return user || null;
+  },
+  logout() { localStorage.removeItem(STORAGE_KEYS.CURRENT_USER); }
 };
