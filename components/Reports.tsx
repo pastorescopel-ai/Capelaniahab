@@ -55,15 +55,27 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     storageService.pullFromCloud().then(() => loadFilteredData());
   }, [loadFilteredData]);
 
-  // Total de Estudantes Alcançados: Cada aluno de estudos e cada aluno das classes (Sem duplicatas)
-  const uniqueStudentsTotal = useMemo(() => {
-    const names = new Set<string>();
-    data.studies.forEach(s => s.patientName && names.add(s.patientName.trim().toLowerCase()));
-    data.classes.forEach(c => c.students.forEach(st => st && names.add(st.trim().toLowerCase())));
-    return names.size;
-  }, [data.studies, data.classes]);
+  // Total de Estudantes: Soma todos os alunos de TODOS os usuários dentro do período (ignora filtro de capelão para este card específico)
+  const totalGlobalStudents = useMemo(() => {
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime() + 86399999;
+    
+    const allStudies = storageService.getStudies().filter(s => {
+      const d = new Date(s.date || s.createdAt).getTime();
+      return d >= start && d <= end;
+    });
+    
+    const allClasses = storageService.getClasses().filter(c => {
+      const d = new Date(c.date || c.createdAt).getTime();
+      return d >= start && d <= end;
+    });
 
-  // Total de Classes Bíblicas Únicas: Identifica classes por setor e lista de alunos para não repetir continuidade
+    const names = new Set<string>();
+    allStudies.forEach(s => s.patientName && names.add(s.patientName.trim().toLowerCase()));
+    allClasses.forEach(c => c.students.forEach(st => st && names.add(st.trim().toLowerCase())));
+    return names.size;
+  }, [startDate, endDate]);
+
   const uniqueClassesTotal = useMemo(() => {
     const classKeys = new Set<string>();
     data.classes.forEach(c => {
@@ -73,7 +85,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     return classKeys.size;
   }, [data.classes]);
 
-  // Dados para Gráfico de Distribuição Global
   const chartData = [
     { name: 'Estudos', value: data.studies.length, color: '#3b82f6' },
     { name: 'Classes', value: uniqueClassesTotal, color: '#a855f7' },
@@ -81,7 +92,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     { name: 'Visitas', value: data.visits.length, color: '#22c55e' }
   ].filter(d => d.value > 0);
 
-  // Mapeamento de Atividades Individuais por Capelão
   const chaplainMetrics = useMemo(() => {
     const usersToMonitor = selectedChaplain === 'ALL' 
       ? allUsers 
@@ -127,7 +137,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const ReportTemplate = () => (
     <div id="report-content" className="w-full bg-white flex flex-col items-center">
       <div className="w-[210mm] min-h-[297mm] p-[15mm] bg-white relative">
-        {/* CABEÇALHO */}
         <div className="flex items-center justify-between border-b-4 border-primary pb-6 mb-8">
           <div className="flex items-center gap-6">
             <div className="h-24 w-24 flex items-center justify-center">
@@ -147,12 +156,11 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
             </div>
           </div>
           <div className="text-right border-l-2 border-slate-100 pl-6">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Alunos Únicos</p>
-            <p className="text-5xl font-black text-slate-800 leading-none">{uniqueStudentsTotal}</p>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total de Alunos</p>
+            <p className="text-5xl font-black text-slate-800 leading-none">{totalGlobalStudents}</p>
           </div>
         </div>
 
-        {/* INFO PERIODO */}
         <div className="mb-8 flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
           <div>
             <p className="text-[9px] font-black text-slate-400 uppercase">Período Selecionado</p>
@@ -164,7 +172,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           </div>
         </div>
 
-        {/* RESUMO GERAL EM CARDS */}
         <div className="grid grid-cols-4 gap-4 mb-10">
           {[
             { label: 'Estudos Bíblicos', val: data.studies.length, bg: 'bg-blue-50', color: 'text-blue-600' },
@@ -179,7 +186,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           ))}
         </div>
 
-        {/* GRÁFICO DE DISTRIBUIÇÃO */}
         <div className="bg-white border-2 border-slate-50 rounded-[2rem] p-6 mb-10">
            <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest text-center italic">Distribuição Geral de Atividades</p>
            <div className="h-48">
@@ -195,7 +201,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
            </div>
         </div>
 
-        {/* DESEMPENHO INDIVIDUAL POR CAPELÃO EM CARDS (SOLICITAÇÃO) */}
         <div className="space-y-8">
            <h3 className="text-xs font-black uppercase text-slate-800 border-l-4 border-primary pl-3 mb-6">Desempenho Detalhado por Membro</h3>
            
@@ -212,7 +217,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                       </div>
                    </div>
                    <div className="text-right">
-                      <p className="text-[8px] font-black text-slate-400 uppercase">Total Geral</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Soma Atividades</p>
                       <p className="text-xl font-black text-primary">{item.total}</p>
                    </div>
                 </div>
@@ -230,7 +235,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
            ))}
         </div>
 
-        {/* RODAPÉ */}
         <div className="mt-20 flex justify-around opacity-60">
            <div className="text-center w-60 border-t border-slate-900 pt-2">
               <p className="text-[9px] font-black uppercase text-slate-800">Coordenação</p>
@@ -245,7 +249,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   return (
     <div className="space-y-10 pb-40">
-      {/* Filtros da Interface - Ocultos na Impressão */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 print:hidden">
         <div>
           <h2 className="text-4xl font-black text-slate-800 tracking-tight italic">Relatórios Estratégicos</h2>
@@ -274,11 +277,10 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         </div>
       </div>
 
-      {/* Cards de Resumo no Painel Principal */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6 print:hidden">
           <div className="bg-primary p-6 rounded-premium text-white shadow-xl">
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Estudantes Alcançados</p>
-            <p className="text-5xl font-black">{uniqueStudentsTotal}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total de Alunos</p>
+            <p className="text-5xl font-black">{totalGlobalStudents}</p>
           </div>
           {[
             { label: 'Estudos Bíblicos', val: data.studies.length, color: 'text-blue-600', icon: '📖' },
@@ -294,7 +296,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           ))}
       </div>
 
-      {/* Seção de Desempenho na UI */}
       <div className="print:hidden space-y-6">
         <div className="flex items-center gap-3">
            <h3 className="text-lg font-black text-slate-800 italic uppercase tracking-tighter">Desempenho da Equipe por Atividade</h3>
@@ -341,7 +342,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         </button>
       </div>
 
-      {/* MODAL DE PREVIEW / IMPRESSÃO */}
       {showPreview && (
         <div className="fixed inset-0 bg-slate-950/98 backdrop-blur-3xl z-[1000] overflow-y-auto no-scrollbar p-4 md:p-12 flex flex-col items-center">
           <div className="w-full max-w-[21cm] flex items-center justify-between mb-8 sticky top-0 z-[1001] bg-white/10 p-6 rounded-[2rem] border border-white/20 backdrop-blur-xl">

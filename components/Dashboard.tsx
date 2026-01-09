@@ -29,7 +29,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const allGroups = storageService.getGroups();
 
   const filteredData = useMemo(() => {
-    // Agora filtramos SEMPRE pelo ID do usuário, independente de ser ADMIN ou não
     const s = allStudies.filter(i => i.chaplainId === user.id);
     const v = allVisits.filter(i => i.chaplainId === user.id);
     const c = allClasses.filter(i => i.chaplainId === user.id);
@@ -43,7 +42,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setPendingVisits(visitsToReturn);
   }, [filteredData.v]);
 
-  // Total de Estudantes da Bíblia (Únicos): Soma de Estudos + Alunos da Classe
   const uniqueStudentsCount = useMemo(() => {
     const names = new Set<string>();
     filteredData.s.forEach(study => study.patientName && names.add(study.patientName.trim().toLowerCase()));
@@ -51,7 +49,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     return names.size;
   }, [filteredData]);
 
-  // Total de Classes Bíblicas (Únicas): Desconsidera repetições por continuidade (mesmo setor e alunos)
   const uniqueClassesCount = useMemo(() => {
     const classKeys = new Set<string>();
     filteredData.c.forEach(c => {
@@ -104,20 +101,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             {user.photoUrl ? <img src={user.photoUrl} alt="Perfil" className="w-full h-full object-cover" /> : <span className="text-3xl">👤</span>}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 group">
               {isEditingGreeting && user.role === UserRole.ADMIN ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 animate-in slide-in-from-left-2">
                   <input 
-                    className="text-3xl font-black bg-white border rounded-xl px-2 outline-none text-slate-800" 
+                    className="text-2xl font-black bg-white border border-primary/30 rounded-xl px-3 py-1 outline-none text-slate-800 shadow-inner" 
                     value={tempGreeting} 
                     onChange={e => setTempGreeting(e.target.value)}
+                    autoFocus
                   />
-                  <button onClick={handleSaveGreeting} className="bg-success text-white p-2 rounded-lg text-xs">OK</button>
+                  <button onClick={handleSaveGreeting} className="bg-success text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg">SALVAR</button>
+                  <button onClick={() => setIsEditingGreeting(false)} className="text-slate-400 text-xs font-bold px-2">Sair</button>
                 </div>
               ) : (
                 <h2 className="text-3xl font-black text-slate-800 tracking-tight italic flex items-center gap-3">
                   {config.dashboardGreeting || 'Shalom'}, {user.name.split(' ')[0]}!
-                  {user.role === UserRole.ADMIN && <button onClick={() => setIsEditingGreeting(true)} className="text-slate-300 hover:text-primary text-sm opacity-0 group-hover:opacity-100 transition-opacity">edit</button>}
+                  {user.role === UserRole.ADMIN && (
+                    <button 
+                      onClick={() => setIsEditingGreeting(true)} 
+                      className="p-1.5 bg-slate-100 text-slate-400 hover:text-primary rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      title="Editar Saudação Global"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  )}
                 </h2>
               )}
             </div>
@@ -190,19 +199,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   <span className="text-2xl">💡</span>
                   <h3 className="text-lg font-black italic tracking-tight uppercase">Insight Individual</h3>
                 </div>
-                {user.role === UserRole.ADMIN && !isEditingInsight && <button onClick={() => setIsEditingInsight(true)} className="text-[10px] font-black uppercase opacity-50 hover:opacity-100 transition-opacity">Editar</button>}
+                {user.role === UserRole.ADMIN && !isEditingInsight && (
+                  <button 
+                    onClick={() => setIsEditingInsight(true)} 
+                    className="p-1.5 bg-white/10 text-white/50 hover:text-white rounded-lg transition-all"
+                    title="Editar Mensagem para Todos"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                )}
               </div>
               
               {isEditingInsight ? (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-in zoom-in-95 duration-200">
                   <textarea 
-                    className="w-full h-32 bg-white/10 border border-white/20 rounded-xl p-3 text-sm outline-none font-medium"
+                    className="w-full h-32 bg-white/10 border border-white/20 rounded-xl p-3 text-sm outline-none font-medium text-white placeholder-white/30"
                     value={tempInsight}
                     onChange={e => setTempInsight(e.target.value)}
-                    placeholder="Escreva a mensagem ministerial global..."
+                    placeholder="Escreva a mensagem ministerial global que todos os usuários verão..."
                   />
                   <div className="flex gap-2">
-                    <button onClick={handleSaveInsight} className="flex-1 py-2 bg-white text-primary rounded-xl font-black text-xs uppercase">Salvar para Todos</button>
+                    <button onClick={handleSaveInsight} className="flex-1 py-2 bg-white text-primary rounded-xl font-black text-xs uppercase shadow-lg">Atualizar Mural</button>
                     <button onClick={() => setIsEditingInsight(false)} className="px-4 py-2 bg-white/10 rounded-xl font-black text-xs uppercase">Cancelar</button>
                   </div>
                 </div>
