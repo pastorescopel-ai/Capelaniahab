@@ -66,6 +66,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const ok = await storageService.pullFromCloud();
     if (ok) {
       const newConfig = storageService.getConfig();
+      // Força a atualização do estado local com os dados globais da nuvem
       setConfig(newConfig);
       setTempGreeting(newConfig.dashboardGreeting || 'Shalom');
       setTempInsight(newConfig.generalMessage || '');
@@ -78,6 +79,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
 
   useEffect(() => {
+    // Sincroniza ao montar o componente para pegar as mensagens globais mais recentes
     refreshCloudData();
 
     if (!config.generalMessage && !localStorage.getItem('cap_cached_insight')) {

@@ -11,7 +11,7 @@ interface StaffVisitFormProps {
 
 const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
   const [allVisits, setAllVisits] = useState<StaffVisit[]>([]);
-  const [viewDate, setViewDate] = useState(new Date()); // Data para o calendário
+  const [viewDate, setViewDate] = useState(new Date()); // Data para controlar o calendário
   
   const config = storageService.getConfig();
   const sectors = config.customSectors.length > 0 ? config.customSectors : SECTORS;
@@ -36,7 +36,7 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
 
   useEffect(() => { loadAll(); }, []);
 
-  // Filtra registros para a lista "Recentes" baseada no mês do calendário
+  // Filtra registros para a lista baseada no mês visualizado no calendário
   const currentMonthRecords = useMemo(() => {
     return allVisits.filter(v => 
       v.month === (viewDate.getMonth() + 1) && 
@@ -44,7 +44,7 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
     ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [allVisits, viewDate]);
 
-  // Lógica do Calendário
+  // Lógica de Geração dos Dias do Calendário
   const calendarDays = useMemo(() => {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
@@ -52,20 +52,30 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     
     const days = [];
-    // Espaços vazios do início da semana
+    // Espaços vazios antes do dia 1
     for (let i = 0; i < firstDay; i++) days.push(null);
-    // Dias do mês
+    // Dias reais do mês
     for (let d = 1; d <= daysInMonth; d++) days.push(d);
     
     return days;
   }, [viewDate]);
 
+  // Verifica se existe visita registrada no dia (para o ponto verde)
   const hasVisitOnDay = (day: number) => {
     return allVisits.some(v => {
       const d = new Date(v.date);
-      return d.getDate() + 1 === day && 
-             v.month === (viewDate.getMonth() + 1) && 
-             v.year === viewDate.getFullYear();
+      // Ajuste de fuso comum em inputs date
+      const visitDay = d.getDate() + 1 === 32 ? 1 : d.getDate() + 1; 
+      
+      // Validação mais precisa de data
+      const dateParts = v.date.split('-');
+      const vDay = parseInt(dateParts[2]);
+      const vMonth = parseInt(dateParts[1]);
+      const vYear = parseInt(dateParts[0]);
+
+      return vDay === day && 
+             vMonth === (viewDate.getMonth() + 1) && 
+             vYear === viewDate.getFullYear();
     });
   };
 
@@ -110,16 +120,16 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
     <div className="space-y-12">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Formulário (2/3) */}
+        {/* Formulário de Registro (2/3 da largura) */}
         <div className="lg:col-span-2 bg-white p-8 rounded-premium border border-slate-100 shadow-xl">
           <h2 className="text-2xl font-black text-slate-800 mb-8 border-b pb-4 italic">🤝 Apoio a Colaborador</h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data *</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data do Atendimento *</label>
               <input type="date" required className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Setor *</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Setor de Atuação *</label>
               <select required className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={formData.sector} onChange={(e) => setFormData({...formData, sector: e.target.value})}>
                 {sectors.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -132,7 +142,7 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
               </datalist>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Motivo *</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Motivo Principal *</label>
               <select required className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})}>
                 {VISIT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -144,20 +154,20 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
                   <p className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Sinalizará uma bandeira vermelha no histórico.</p>
               </label>
             </div>
-            <textarea rows={3} className="md:col-span-2 w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-medium" placeholder="Relato do atendimento..." value={formData.observations} onChange={(e) => setFormData({...formData, observations: e.target.value})} />
-            <button type="submit" className="md:col-span-2 py-5 bg-primary text-white rounded-premium font-black shadow-xl hover:scale-[1.01] transition-all">
+            <textarea rows={3} className="md:col-span-2 w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-medium" placeholder="Relato breve do atendimento..." value={formData.observations} onChange={(e) => setFormData({...formData, observations: e.target.value})} />
+            <button type="submit" className="md:col-span-2 py-5 bg-primary text-white rounded-premium font-black shadow-xl hover:scale-[1.01] active:scale-95 transition-all">
               {formData.id ? 'Salvar Alterações' : 'Finalizar Atendimento'}
             </button>
           </form>
         </div>
 
-        {/* Calendário (1/3) */}
-        <div className="bg-white p-6 rounded-premium border border-slate-100 shadow-xl flex flex-col">
+        {/* Calendário Visual (1/3 da largura) */}
+        <div className="bg-white p-6 rounded-premium border border-slate-100 shadow-xl flex flex-col min-h-[400px]">
             <div className="flex items-center justify-between mb-6">
                 <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">❮</button>
                 <div className="text-center">
                     <p className="text-[10px] font-black uppercase text-primary tracking-widest">{viewDate.getFullYear()}</p>
-                    <p className="text-lg font-black text-slate-800">{MONTHS[viewDate.getMonth()]}</p>
+                    <p className="text-lg font-black text-slate-800 uppercase">{MONTHS[viewDate.getMonth()]}</p>
                 </div>
                 <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">❯</button>
             </div>
@@ -172,25 +182,29 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
                 {calendarDays.map((day, idx) => {
                     if (day === null) return <div key={`empty-${idx}`}></div>;
                     const active = hasVisitOnDay(day);
+                    const isToday = day === new Date().getDate() && viewDate.getMonth() === new Date().getMonth() && viewDate.getFullYear() === new Date().getFullYear();
+                    
                     return (
                         <div 
                           key={day} 
                           className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-bold transition-all relative
                             ${active ? 'bg-success/10 text-success ring-1 ring-success/30' : 'text-slate-400 hover:bg-slate-50'}
+                            ${isToday ? 'border-2 border-primary/20' : ''}
                           `}
                         >
                             {day}
-                            {active && <div className="w-1 h-1 bg-success rounded-full absolute bottom-1"></div>}
+                            {active && <div className="w-1.5 h-1.5 bg-success rounded-full absolute bottom-1 shadow-sm"></div>}
                         </div>
                     );
                 })}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-50">
+            <div className="mt-6 pt-4 border-t border-slate-50 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-success/20 rounded-md border border-success/30"></div>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Dias com atendimentos</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Atendimentos Realizados</span>
                 </div>
+                <button onClick={() => setViewDate(new Date())} className="text-[9px] font-black text-primary uppercase text-center mt-2 hover:underline">Ir para hoje</button>
             </div>
         </div>
       </div>
@@ -198,7 +212,6 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
       <div className="space-y-4">
         <div className="flex items-center justify-between px-2">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Histórico de {MONTHS[viewDate.getMonth()]} ({currentMonthRecords.length})</h3>
-            <button onClick={() => setViewDate(new Date())} className="text-[9px] font-black text-primary uppercase border-b border-primary/20">Ir para hoje</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {currentMonthRecords.map(record => (
@@ -216,7 +229,7 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
                 </button>
 
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-slate-800 truncate">{record.staffName}</p>
+                  <p className="font-black text-slate-800 truncate uppercase text-sm tracking-tight">{record.staffName}</p>
                   <p className="text-[10px] text-green-600 font-bold uppercase">{record.sector} • {record.reason} • {new Date(record.date).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})}</p>
                 </div>
               </div>
@@ -228,7 +241,7 @@ const StaffVisitForm: React.FC<StaffVisitFormProps> = ({ user, onSuccess }) => {
             </div>
           ))}
           {currentMonthRecords.length === 0 && (
-            <div className="md:col-span-2 py-10 text-center text-slate-300 italic text-sm">Nenhuma visita registrada neste mês.</div>
+            <div className="md:col-span-2 py-10 text-center text-slate-300 italic text-sm">Nenhuma visita registrada neste mês selecionado.</div>
           )}
         </div>
       </div>

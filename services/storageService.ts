@@ -42,9 +42,6 @@ export const storageService = {
   },
 
   async pullFromCloud(): Promise<boolean> {
-    // Throttling leve para evitar excesso de requisições, mas sensível o suficiente para atualizações
-    if (Date.now() - lastWriteTimestamp < PULL_LOCK_MS) return true;
-    
     try {
       const response = await fetch(`${INTERNAL_CLOUD_URL}?action=fetchAll`);
       if (!response.ok) return false;
@@ -64,15 +61,15 @@ export const storageService = {
         
         if (cloudData.config) {
             const currentLocal = this.getConfig();
-            // Prioridade total para as strings de mensagem que vêm da nuvem
-            const merged = { 
+            // Prioridade total para as strings de mensagem que vêm da nuvem para garantir visualização global
+            const merged: CloudConfig = { 
               ...currentLocal, 
               ...cloudData.config,
               dashboardGreeting: cloudData.config.dashboardGreeting || currentLocal.dashboardGreeting,
               generalMessage: cloudData.config.generalMessage || currentLocal.generalMessage
             };
             
-            // Preservar logos se a nuvem enviar vazio (devido ao limite de células do Sheets)
+            // Preservar logos locais se a nuvem enviar vazio (evita quebra visual)
             if (!cloudData.config.appLogo) merged.appLogo = currentLocal.appLogo;
             if (!cloudData.config.reportLogo) merged.reportLogo = currentLocal.reportLogo;
             
@@ -221,10 +218,10 @@ export const storageService = {
   },
   async saveConfig(config: CloudConfig) {
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-    // Sincroniza todas as chaves de configuração, exceto as logos em base64 (muito grandes para uma célula de planilha)
+    // Sincroniza todas as chaves de configuração para a nuvem
     await this.syncToCloud('CONFIGURACAO_SISTEMA', { 
       ...config, 
-      appLogo: '', 
+      appLogo: '', // Strings base64 são muito grandes para células individuais do Sheets, melhor não enviar no POST direto
       reportLogo: '' 
     });
   },
