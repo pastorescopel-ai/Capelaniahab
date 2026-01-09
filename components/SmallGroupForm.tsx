@@ -32,7 +32,7 @@ const SmallGroupForm: React.FC<SmallGroupFormProps> = ({ user, onSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.sector) {
-        alert("Preencha todos os campos.");
+        alert("Escolha um PG e um Setor das listas oficiais.");
         return;
     }
 
@@ -52,6 +52,7 @@ const SmallGroupForm: React.FC<SmallGroupFormProps> = ({ user, onSuccess }) => {
         await storageService.saveGroup(group);
         setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', name: '', leader: '', shift: SHIFTS[0] as any, participantsCount: 1 });
         onSuccess();
+        alert("Pequeno Grupo registrado com sucesso!");
     } finally {
         setIsSyncing(false);
     }
@@ -60,18 +61,23 @@ const SmallGroupForm: React.FC<SmallGroupFormProps> = ({ user, onSuccess }) => {
   return (
     <div className="space-y-8">
       <SyncOverlay isVisible={isSyncing} />
-      <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl">
+      <div className="bg-white p-6 md:p-8 rounded-premium border border-slate-100 shadow-xl">
         <h2 className="text-2xl font-black text-slate-800 mb-8 border-b pb-4 italic">🏠 Novo Pequeno Grupo</h2>
 
         <div className="flex gap-4 mb-8">
           {(['HAB', 'HABA'] as HospitalUnit[]).map(unit => (
-            <button key={unit} onClick={() => { setHospitalUnit(unit); setFormData({...formData, sector: '', name: ''}); }} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${hospitalUnit === unit ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+            <button key={unit} type="button" onClick={() => { setHospitalUnit(unit); setFormData({...formData, sector: '', name: ''}); }} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${hospitalUnit === unit ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
               UNIDADE {unit}
             </button>
           ))}
         </div>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Data do PG</label>
+            <input type="date" required className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
+          </div>
+
           <SearchableSelect 
             label="Escolha o PG Oficial" 
             options={currentPGs} 
@@ -85,23 +91,30 @@ const SmallGroupForm: React.FC<SmallGroupFormProps> = ({ user, onSuccess }) => {
             label="Setor do Hospital" 
             options={currentSectors} 
             value={formData.sector} 
-            onChange={val => setFormData({...formData, sector: val})}
+            onChange={val => setFormData({...formData, sector: val})} 
             placeholder="Buscar Setor..."
             required
           />
 
           <div className="space-y-1">
-            <label className="text-sm font-black text-slate-700 uppercase tracking-widest ml-1">Líder do Grupo</label>
-            <input type="text" required placeholder="Nome do líder" className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" value={formData.leader} onChange={(e) => setFormData({...formData, leader: e.target.value})} />
+            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Líder do Grupo</label>
+            <input type="text" required placeholder="Nome do responsável" className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.leader} onChange={(e) => setFormData({...formData, leader: e.target.value})} />
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-black text-slate-700 uppercase tracking-widest ml-1">Nº Participantes</label>
-            <input type="number" required min="1" className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" value={formData.participantsCount} onChange={(e) => setFormData({...formData, participantsCount: Number(e.target.value)})} />
+            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Turno</label>
+            <select className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.shift} onChange={(e) => setFormData({...formData, shift: e.target.value as any})}>
+              {SHIFTS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
 
-          <button type="submit" disabled={isSyncing} className="md:col-span-2 py-5 bg-primary text-white rounded-premium font-black shadow-xl">
-             Salvar e Sincronizar
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">Nº Participantes</label>
+            <input type="number" required min="1" className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-800" value={formData.participantsCount} onChange={(e) => setFormData({...formData, participantsCount: Number(e.target.value)})} />
+          </div>
+
+          <button type="submit" disabled={isSyncing} className="md:col-span-2 py-5 bg-primary text-white rounded-premium font-black shadow-xl hover:bg-slate-800 transition-all">
+             Salvar e Sincronizar PG
           </button>
         </form>
       </div>
