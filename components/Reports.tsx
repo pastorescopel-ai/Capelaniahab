@@ -67,16 +67,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     };
   }, [filtered]);
 
-  const pgsBySector = useMemo(() => {
-    const sectors: Record<string, number> = {};
-    (filtered.groups as SmallGroup[]).forEach((g: SmallGroup) => {
-      if (g.sector) {
-        sectors[g.sector] = (sectors[g.sector] || 0) + 1;
-      }
-    });
-    return sectors;
-  }, [filtered.groups]);
-
   const handlePrint = () => {
     const printRoot = document.getElementById('print-root');
     if (!printRoot) return;
