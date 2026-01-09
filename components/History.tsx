@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { User, UserRole, ChangeRequest } from '../types';
@@ -13,7 +14,6 @@ const History: React.FC<HistoryProps> = ({ user }) => {
   const [filterModule, setFilterModule] = useState<string>('ALL');
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Estados para Controle de Modais
   const [isEditing, setIsEditing] = useState<any | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
   const [confirmEdit, setConfirmEdit] = useState<any | null>(null);
@@ -43,6 +43,11 @@ const History: React.FC<HistoryProps> = ({ user }) => {
     return d.getMonth() + 1 === m && d.getFullYear() === y;
   };
 
+  const canModify = (record: any) => {
+    if (user.role === UserRole.ADMIN) return true;
+    return isCurrentMonth(record.month, record.year);
+  };
+
   const executeDelete = async () => {
     const record = confirmDelete;
     if (!record || isProcessing) return;
@@ -50,8 +55,8 @@ const History: React.FC<HistoryProps> = ({ user }) => {
     setIsProcessing(true);
 
     try {
-      if (!isCurrentMonth(record.month, record.year)) {
-        const reason = prompt("Este registro é de um mês passado. Justifique a exclusão para o administrador:");
+      if (!isCurrentMonth(record.month, record.year) && user.role !== UserRole.ADMIN) {
+        const reason = prompt("Este registro é de um mês passado. Justifique a exclusão para o administrador aprovar:");
         if (reason) {
           await storageService.addRequest({
             id: Math.random().toString(36).substr(2, 9),
@@ -89,13 +94,6 @@ const History: React.FC<HistoryProps> = ({ user }) => {
     setConfirmEdit(null);
   };
 
-  const formatPhone = (val: string) => {
-    const digits = val.replace(/\D/g, '').substring(0, 11);
-    if (digits.length <= 2) return digits;
-    if (digits.length <= 7) return `(${digits.substring(0, 2)}) ${digits.substring(2)}`;
-    return `(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7)}`;
-  };
-
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isProcessing) return;
@@ -104,7 +102,7 @@ const History: React.FC<HistoryProps> = ({ user }) => {
     const { _module, ...cleanRecord } = isEditing;
 
     try {
-      if (!isCurrentMonth(isEditing.month, isEditing.year)) {
+      if (!isCurrentMonth(isEditing.month, isEditing.year) && user.role !== UserRole.ADMIN) {
         const reason = prompt("Justificativa para alteração de mês retroativo:");
         if (reason) {
           await storageService.addRequest({
@@ -122,7 +120,6 @@ const History: React.FC<HistoryProps> = ({ user }) => {
           alert("Solicitação de edição retroativa enviada!");
         }
       } else {
-        // Edição direta
         switch (_module) {
           case 'STUDY': await storageService.saveStudy(cleanRecord); break;
           case 'CLASS': await storageService.saveClass(cleanRecord); break;
@@ -177,14 +174,14 @@ const History: React.FC<HistoryProps> = ({ user }) => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h2 className="text-4xl font-black text-slate-800 tracking-tight">Histórico de Atividades</h2>
-          <p className="text-slate-500 font-medium text-lg">Gerenciamento completo de registros efetuados.</p>
+          <p className="text-slate-500 font-medium text-lg italic">Controle e edição de registros ministeriais.</p>
         </div>
         <select 
-          className="px-6 py-4 bg-white border border-slate-100 rounded-2xl shadow-xl text-sm font-bold text-slate-600 outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+          className="px-6 py-4 bg-white border-2 border-slate-100 rounded-2xl shadow-xl text-sm font-black text-slate-600 outline-none"
           value={filterModule}
           onChange={(e) => setFilterModule(e.target.value)}
         >
-          <option value="ALL">Todos os Módulos</option>
+          <option value="ALL">Visualizar Tudo</option>
           <option value="STUDY">📖 Estudos Bíblicos</option>
           <option value="CLASS">🎓 Classes Bíblicas</option>
           <option value="PG">🏠 Pequenos Grupos</option>
@@ -192,276 +189,53 @@ const History: React.FC<HistoryProps> = ({ user }) => {
         </select>
       </div>
 
-      {/* Modal de Confirmação de EXCLUSÃO */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
-          <div className="bg-white rounded-premium p-8 max-w-sm w-full text-center space-y-6 shadow-2xl animate-in zoom-in duration-300">
-            <div className="w-20 h-20 bg-danger/10 text-danger rounded-full flex items-center justify-center text-4xl mx-auto">
-              {isProcessing ? <div className="w-8 h-8 border-2 border-danger border-t-transparent rounded-full animate-spin"></div> : "⚠️"}
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-black text-slate-800">Confirmar Exclusão</h3>
-              <p className="text-slate-500 text-sm">Deseja realmente apagar o registro de <span className="font-bold text-slate-700">"{confirmDelete.patientName || confirmDelete.staffName || confirmDelete.name}"</span>?</p>
-            </div>
-            <div className="flex gap-4">
-              <button disabled={isProcessing} onClick={() => setConfirmDelete(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold">Não, manter</button>
-              <button disabled={isProcessing} onClick={executeDelete} className="flex-1 py-4 bg-danger text-white rounded-2xl font-bold shadow-lg shadow-danger/20">
-                {isProcessing ? 'Excluindo...' : 'Sim, excluir'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Confirmação de EDIÇÃO */}
-      {confirmEdit && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
-          <div className="bg-white rounded-premium p-8 max-w-sm w-full text-center space-y-6 shadow-2xl animate-in zoom-in duration-300">
-            <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center text-4xl mx-auto">📝</div>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-black text-slate-800">Editar Registro?</h3>
-              <p className="text-slate-500 text-sm">Deseja abrir as informações deste atendimento para modificação?</p>
-            </div>
-            <div className="flex gap-4">
-              <button onClick={() => setConfirmEdit(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold">Cancelar</button>
-              <button onClick={openEditor} className="flex-1 py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20">Sim, editar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Formuário de Edição Completo */}
-      {isEditing && (
-        <div className="fixed inset-0 bg-primary/20 backdrop-blur-md z-[200] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-premium w-full max-w-2xl shadow-2xl animate-in zoom-in duration-300 flex flex-col my-8">
-            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-2xl font-black text-slate-800">Modificar {isEditing._module}</h3>
-              <button onClick={() => setIsEditing(null)} className="text-slate-400 hover:text-danger text-2xl">✕</button>
-            </div>
-            <form onSubmit={saveEdit} className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Ano</label>
-                  <input type="number" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.year} onChange={e => setIsEditing({...isEditing, year: Number(e.target.value)})} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Mês</label>
-                  <select className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.month} onChange={e => setIsEditing({...isEditing, month: Number(e.target.value)})}>
-                    {MONTHS.map((m, i) => <option key={m} value={i+1}>{m}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase">Setor</label>
-                <select className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.sector} onChange={e => setIsEditing({...isEditing, sector: e.target.value})}>
-                  {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-
-              {/* Campos específicos por Módulo */}
-              {isEditing._module === 'STUDY' && (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Nome do Paciente</label>
-                    <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.patientName} onChange={e => setIsEditing({...isEditing, patientName: e.target.value})} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">WhatsApp</label>
-                    <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.whatsapp} onChange={e => setIsEditing({...isEditing, whatsapp: formatPhone(e.target.value)})} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Série</label>
-                      <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.studySeries || ''} onChange={e => setIsEditing({...isEditing, studySeries: e.target.value})} />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Lição</label>
-                      <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.currentLesson || ''} onChange={e => setIsEditing({...isEditing, currentLesson: e.target.value})} />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Status</label>
-                    <select className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.status} onChange={e => setIsEditing({...isEditing, status: e.target.value as any})}>
-                      {STUDY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                </>
-              )}
-
-              {isEditing._module === 'CLASS' && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Série</label>
-                      <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.studySeries || ''} onChange={e => setIsEditing({...isEditing, studySeries: e.target.value})} />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Lição</label>
-                      <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.currentLesson || ''} onChange={e => setIsEditing({...isEditing, currentLesson: e.target.value})} />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Participantes (separados por vírgula)</label>
-                    <textarea className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.students.join(', ')} onChange={e => setIsEditing({...isEditing, students: e.target.value.split(',').map(s => s.trim())})} />
-                  </div>
-                </>
-              )}
-
-              {isEditing._module === 'PG' && (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Nome do Grupo</label>
-                    <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.name} onChange={e => setIsEditing({...isEditing, name: e.target.value})} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Líder</label>
-                    <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.leader} onChange={e => setIsEditing({...isEditing, leader: e.target.value})} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Turno</label>
-                      <select className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.shift} onChange={e => setIsEditing({...isEditing, shift: e.target.value as any})}>
-                        {SHIFTS.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Qtd Participantes</label>
-                      <input type="number" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.participantsCount} onChange={e => setIsEditing({...isEditing, participantsCount: Number(e.target.value)})} />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {isEditing._module === 'VISIT' && (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Nome do Colaborador</label>
-                    <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.staffName} onChange={e => setIsEditing({...isEditing, staffName: e.target.value})} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Motivo</label>
-                    <select className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none" value={isEditing.reason} onChange={e => setIsEditing({...isEditing, reason: e.target.value})}>
-                      {VISIT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2 p-2">
-                    <input type="checkbox" id="edit-followup" checked={isEditing.needsFollowUp} onChange={e => setIsEditing({...isEditing, needsFollowUp: e.target.checked})} />
-                    <label htmlFor="edit-followup" className="text-sm font-bold text-slate-600">Necessita Retorno?</label>
-                  </div>
-                </>
-              )}
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase">Observações</label>
-                <textarea className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl min-h-[100px] outline-none focus:ring-2 focus:ring-primary/20" value={isEditing.observations || ''} onChange={e => setIsEditing({...isEditing, observations: e.target.value})} />
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button disabled={isProcessing} type="button" onClick={() => setIsEditing(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold">Cancelar</button>
-                <button disabled={isProcessing} type="submit" className="flex-1 py-4 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/20">
-                  {isProcessing ? 'Salvando...' : 'Efetivar Alterações'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {user.role === UserRole.ADMIN && requests.some(r => r.status === 'PENDING') && (
-        <div className="bg-amber-50 border border-amber-100 rounded-premium p-8 space-y-6 shadow-sm">
-          <h3 className="text-xl font-bold text-amber-800 flex items-center gap-2">
-            <span>🔔</span> Solicitações Pendentes
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {requests.filter(r => r.status === 'PENDING').map(req => (
-              <div key={req.id} className="bg-white p-6 rounded-2xl shadow-md border border-amber-100 space-y-4">
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <p className="text-sm font-black text-slate-800">{req.requestedByName}</p>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-black ${req.type === 'DELETE' ? 'bg-danger/10 text-danger' : 'bg-blue-100 text-blue-600'}`}>{req.type}</span>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">Módulo: {req.module}</p>
-                  <p className="text-sm text-slate-600 mt-3 italic bg-slate-50 p-3 rounded-xl">"{req.reason || 'Sem justificativa'}"</p>
-                </div>
-                <div className="flex gap-2">
-                  <button disabled={isProcessing} onClick={() => storageService.updateRequestStatus(req.id, 'REJECTED')} className="flex-1 py-2 text-xs font-bold text-slate-400 hover:text-danger border border-slate-100 rounded-xl transition-all">Recusar</button>
-                  <button disabled={isProcessing} onClick={() => approveRequest(req)} className="flex-1 py-2 text-xs font-bold bg-success text-white rounded-xl shadow-lg shadow-success/20 hover:scale-105 transition-all">Aprovar</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {/* Tabela Customizada */}
       <div className="bg-white rounded-premium border border-slate-100 shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50/50">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulo</th>
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Atendimento</th>
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mês Referência</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulo / Nome</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Setor / Ref.</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filteredRecords.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/30 transition-colors group">
+                <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-8 py-6">
-                    <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm ${
-                      item._module === 'STUDY' ? 'bg-blue-100 text-blue-600' : 
-                      item._module === 'CLASS' ? 'bg-purple-100 text-purple-600' :
-                      item._module === 'PG' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'
-                    }`}>
-                      {item._module === 'STUDY' ? '📖 Estudo' : 
-                       item._module === 'CLASS' ? '🎓 Classe' :
-                       item._module === 'PG' ? '🏠 PG' : '🤝 Visita'}
-                    </span>
-                  </td>
-                  <td className="px-8 py-6">
-                    <div className="text-base font-black text-slate-800">
-                      {item.patientName || item.staffName || item.name || `${item.students?.length} Estudantes`}
+                    <div className="flex flex-col">
+                       <span className={`w-fit text-[9px] font-black px-2 py-0.5 rounded-md mb-1 ${
+                         item._module === 'STUDY' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+                       }`}>
+                         {item._module}
+                       </span>
+                       <span className="text-base font-black text-slate-800">{item.patientName || item.staffName || item.name || 'Registro de Equipe'}</span>
                     </div>
-                    <div className="text-xs text-slate-400 font-bold uppercase mt-0.5 tracking-tight">{item.sector}</div>
-                    {(item.studySeries || item.currentLesson) && (
-                      <div className="text-[10px] text-primary font-bold mt-1">
-                        {item.studySeries} {item.currentLesson && `• ${item.currentLesson}`}
-                      </div>
-                    )}
                   </td>
                   <td className="px-8 py-6">
-                    <div className="text-sm font-bold text-slate-600">{MONTHS[item.month-1]} / {item.year}</div>
-                    <div className="text-[10px] text-slate-400 font-medium">Registrado em: {new Date(item.createdAt).toLocaleDateString()}</div>
+                    <p className="text-sm font-bold text-slate-600">{item.sector}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">{item.studySeries || item.reason || ''}</p>
+                  </td>
+                  <td className="px-8 py-6">
+                    <p className="text-sm font-black text-primary italic">{MONTHS[item.month-1]} / {item.year}</p>
+                    <p className="text-[9px] text-slate-300 font-bold">{new Date(item.createdAt).toLocaleDateString()}</p>
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => setConfirmEdit(item)}
-                        className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-primary hover:border-primary/30 rounded-2xl shadow-sm transition-all"
-                        title="Editar Registro"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button 
-                        onClick={() => setConfirmDelete(item)}
-                        className="p-3 bg-white border border-slate-100 text-slate-400 hover:text-danger hover:border-danger/30 rounded-2xl shadow-sm transition-all"
-                        title="Excluir Registro"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                    <div className="flex justify-end gap-2">
+                       {canModify(item) ? (
+                         <>
+                           <button onClick={() => setConfirmEdit(item)} className="p-3 bg-slate-50 text-primary rounded-xl hover:bg-primary hover:text-white transition-all">📝</button>
+                           <button onClick={() => setConfirmDelete(item)} className="p-3 bg-slate-50 text-danger rounded-xl hover:bg-danger hover:text-white transition-all">✕</button>
+                         </>
+                       ) : (
+                         <span className="text-[9px] font-black text-slate-300 uppercase px-3 py-2 bg-slate-50 rounded-xl">🔒 BLOQUEADO</span>
+                       )}
                     </div>
                   </td>
                 </tr>
               ))}
-              {filteredRecords.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-8 py-20 text-center text-slate-400 italic font-medium">Não há registros para os filtros selecionados.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>

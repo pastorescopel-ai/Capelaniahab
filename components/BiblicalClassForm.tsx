@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { SECTORS, STUDY_GUIDES } from '../constants';
+import { STUDY_GUIDES } from '../constants';
 import { storageService } from '../services/storageService';
 import { BiblicalClass, User } from '../types';
+import SearchableSelect from './SearchableSelect';
+import SyncOverlay from './SyncOverlay';
 
 interface BiblicalClassFormProps {
   user: User;
@@ -11,13 +13,14 @@ interface BiblicalClassFormProps {
 
 const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }) => {
   const [recentRecords, setRecentRecords] = useState<BiblicalClass[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
   const config = storageService.getConfig();
-  const sectors = config.customSectors.length > 0 ? config.customSectors : SECTORS;
+  const sectors = config.customSectors || [];
 
   const [formData, setFormData] = useState({
     id: '',
     date: new Date().toISOString().split('T')[0],
-    sector: sectors[0],
+    sector: '',
     studySeries: '',
     currentLesson: '',
     observations: ''
@@ -27,11 +30,10 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
 
   const allClasses = useMemo(() => storageService.getClasses(), [recentRecords]);
   
-  // Lista de Classes Recentes para Replicação
   const uniqueClasses = useMemo(() => {
     const map = new Map<string, BiblicalClass>();
     allClasses.forEach(c => {
-        const key = `${c.sector}-${c.students.sort().join(',')}`;
+        const key = `${c.sector}-${[...c.students].sort().join(',')}`;
         if (!map.has(key)) map.set(key, c);
     });
     return Array.from(map.values()).slice(0, 10);
@@ -54,12 +56,18 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
 
   useEffect(() => { loadRecent(); }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (students.length === 0) {
-      alert("Adicione pelo menos um aluno na lista.");
+    if (!formData.sector) {
+      alert("Selecione um setor oficial.");
       return;
     }
+    if (students.length === 0) {
+      alert("Adicione pelo menos um aluno.");
+      return;
+    }
+
+    setIsSyncing(true);
 
     const dateObj = new Date(formData.date);
     const cls: BiblicalClass = {
@@ -70,18 +78,23 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
       students,
       chaplainId: user.id,
       createdAt: formData.id ? recentRecords.find(r => r.id === formData.id)?.createdAt || new Date().toISOString() : new Date().toISOString()
-    };
-    storageService.saveClass(cls).then(() => {
+    } as BiblicalClass;
+
+    try {
+      await storageService.saveClass(cls);
       alert("Classe bíblica registrada!");
-      setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: sectors[0], studySeries: '', currentLesson: '', observations: '' });
+      setFormData({ id: '', date: new Date().toISOString().split('T')[0], sector: '', studySeries: '', currentLesson: '', observations: '' });
       setStudents([]);
       loadRecent();
       onSuccess();
-    });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
     <div className="space-y-12">
+      <SyncOverlay isVisible={isSyncing} />
       <div className="bg-white p-8 rounded-premium border border-slate-100 shadow-xl">
         <div className="flex justify-between items-center mb-8 border-b pb-4">
            <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2 italic">🎓 Classe Bíblica</h2>
@@ -97,32 +110,36 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data *</label>
-              <input type="date" required className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
+              <label className="text-[11px] md:text-[10px] font-black text-slate-500 md:text-slate-400 uppercase tracking-widest ml-1">Data *</label>
+              <input type="date" required className="w-full px-4 py-4 md:py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
             </div>
+            
+            <SearchableSelect 
+              label="Setor Hospitalar" 
+              options={sectors} 
+              value={formData.sector} 
+              onChange={val => setFormData({...formData, sector: val})} 
+              placeholder="Escolha o setor oficial..."
+              required
+            />
+
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Setor *</label>
-              <select required className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={formData.sector} onChange={(e) => setFormData({...formData, sector: e.target.value})}>
-                {sectors.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Guia de Estudo *</label>
-              <input list="guides-list" required placeholder="Digite o guia utilizado" className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={formData.studySeries} onChange={(e) => setFormData({...formData, studySeries: e.target.value})} />
+              <label className="text-[11px] md:text-[10px] font-black text-slate-500 md:text-slate-400 uppercase tracking-widest ml-1">Guia de Estudo *</label>
+              <input list="guides-list" required placeholder="Digite o guia utilizado" className="w-full px-4 py-4 md:py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold" value={formData.studySeries} onChange={(e) => setFormData({...formData, studySeries: e.target.value})} />
               <datalist id="guides-list">
                 {STUDY_GUIDES.map(g => <option key={g} value={g} />)}
               </datalist>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lição Atual *</label>
-              <input type="text" required placeholder="Nº ou título da lição" className="w-full px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={formData.currentLesson} onChange={(e) => setFormData({...formData, currentLesson: e.target.value})} />
+              <label className="text-[11px] md:text-[10px] font-black text-slate-500 md:text-slate-400 uppercase tracking-widest ml-1">Lição Atual *</label>
+              <input type="text" required placeholder="Nº ou título da lição" className="w-full px-4 py-4 md:py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold" value={formData.currentLesson} onChange={(e) => setFormData({...formData, currentLesson: e.target.value})} />
             </div>
           </div>
           
           <div className="space-y-4">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lista de Alunos Presentes *</label>
+            <label className="text-[11px] md:text-[10px] font-black text-slate-500 md:text-slate-400 uppercase tracking-widest ml-1">Lista de Alunos Presentes *</label>
             <div className="flex gap-2">
-               <input type="text" placeholder="Adicionar nome do aluno..." className="flex-1 px-4 py-3 bg-slate-50 border rounded-2xl outline-none font-bold" value={newStudent} onChange={e => setNewStudent(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), newStudent && !students.includes(newStudent) && setStudents([...students, newStudent]), setNewStudent(''))} />
+               <input type="text" placeholder="Adicionar nome do aluno..." className="flex-1 px-4 py-4 md:py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold" value={newStudent} onChange={e => setNewStudent(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), newStudent && !students.includes(newStudent) && setStudents([...students, newStudent]), setNewStudent(''))} />
                <button type="button" onClick={() => (newStudent && !students.includes(newStudent) && setStudents([...students, newStudent]), setNewStudent(''))} className="px-6 bg-primary text-white rounded-2xl font-black">Adicionar</button>
             </div>
             <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl min-h-[60px] border border-slate-100">
@@ -135,7 +152,7 @@ const BiblicalClassForm: React.FC<BiblicalClassFormProps> = ({ user, onSuccess }
             </div>
           </div>
 
-          <button type="submit" className="w-full py-5 bg-primary text-white rounded-premium font-black shadow-xl hover:scale-[1.01] active:scale-95 transition-all">
+          <button type="submit" disabled={isSyncing} className="w-full py-5 bg-primary text-white rounded-premium font-black shadow-xl hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50">
             {formData.id ? 'Salvar Alterações' : 'Finalizar Registro de Classe'}
           </button>
         </form>

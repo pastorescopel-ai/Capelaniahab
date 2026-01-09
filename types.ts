@@ -80,9 +80,9 @@ export interface CloudConfig {
   reportLogo?: string;
   customSectors: string[];
   customCollaborators: string[];
+  customPGs: string[];
   generalMessage?: string;
   dashboardGreeting?: string;
-  // Novos campos para customização do relatório
   reportTitle?: string;
   reportSubtitle?: string;
   reportTitleFontSize?: string;
