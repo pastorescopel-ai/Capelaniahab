@@ -95,7 +95,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   };
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-8 pb-24 text-slate-800">
       <div className="bg-white p-6 rounded-premium shadow-xl border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Início</label>
