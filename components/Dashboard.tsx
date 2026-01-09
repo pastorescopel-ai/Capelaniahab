@@ -60,33 +60,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const totalActivitiesCount = filteredData.s.length + filteredData.v.length + filteredData.c.length + filteredData.g.length;
 
-  // Função de sincronização reforçada para Mural e Saudação
-  const refreshCloudData = async (isBackground = false) => {
-    if (!isBackground) setSyncStatus('SYNCING');
-    
+  // Função para buscar dados atualizados da nuvem (Mural e Saudação)
+  const refreshCloudData = async (background = false) => {
+    if (!background) setSyncStatus('SYNCING');
     const ok = await storageService.pullFromCloud();
     if (ok) {
       const newConfig = storageService.getConfig();
-      // Atualiza o estado para refletir mudanças vindas de outros usuários
       setConfig(newConfig);
-      
-      // Só atualiza os campos temporários se o usuário não estiver editando no momento
+      // Se não estivermos editando, atualizamos os temporários para refletir a nuvem
       if (!isEditingGreeting) setTempGreeting(newConfig.dashboardGreeting || 'Shalom');
       if (!isEditingInsight) setTempInsight(newConfig.generalMessage || '');
-      
-      if (!isBackground) setSyncStatus('SUCCESS');
+      if (!background) setSyncStatus('SUCCESS');
     } else {
-      if (!isBackground) setSyncStatus('ERROR');
+      if (!background) setSyncStatus('ERROR');
     }
-    
-    if (!isBackground) setTimeout(() => setSyncStatus('IDLE'), 3000);
+    if (!background) setTimeout(() => setSyncStatus('IDLE'), 3000);
   };
 
   useEffect(() => {
-    // Sincronização inicial imediata
+    // Sincronização inicial
     refreshCloudData();
 
-    // Sincronização Automática (Polling): Atualiza a cada 60 segundos
+    // Auto-atualização (Polling) a cada 60 segundos para captar mudanças globais do ADM
     const interval = setInterval(() => {
       refreshCloudData(true);
     }, 60000);
@@ -105,6 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setSyncStatus('SYNCING');
     const currentConfig = storageService.getConfig();
     const newConfig = { ...currentConfig, dashboardGreeting: tempGreeting };
+    // Salva local e dispara syncToCloud imediato
     await storageService.saveConfig(newConfig);
     setConfig(newConfig);
     setIsEditingGreeting(false);
@@ -116,6 +112,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setSyncStatus('SYNCING');
     const currentConfig = storageService.getConfig();
     const newConfig = { ...currentConfig, generalMessage: tempInsight };
+    // Salva local e dispara syncToCloud imediato
     await storageService.saveConfig(newConfig);
     setConfig(newConfig);
     setIsEditingInsight(false);
@@ -140,8 +137,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     onChange={e => setTempGreeting(e.target.value)}
                     autoFocus
                   />
-                  <button onClick={handleSaveGreeting} className="bg-success text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg hover:bg-green-600 transition-colors">GRAVAR NA NUVEM</button>
-                  <button onClick={() => { setIsEditingGreeting(false); setTempGreeting(config.dashboardGreeting || 'Shalom'); }} className="text-slate-400 text-xs font-bold px-2">Cancelar</button>
+                  <button onClick={handleSaveGreeting} className="bg-success text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg hover:bg-green-600 transition-colors">SALVAR ONLINE</button>
+                  <button onClick={() => setIsEditingGreeting(false)} className="text-slate-400 text-xs font-bold px-2">Cancelar</button>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 group">
@@ -175,7 +172,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 : 'bg-success animate-pulse'
           }`}></span>
           <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
-            {syncStatus === 'SYNCING' ? 'Atualizando...' : 'Conexão Cloud Ativa'}
+            {syncStatus === 'SYNCING' ? 'Sincronizando...' : 'Conexão em Tempo Real'}
           </span>
         </div>
       </div>
@@ -259,8 +256,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     placeholder="Escreva a mensagem ministerial que todos verão..."
                   />
                   <div className="flex gap-2">
-                    <button onClick={handleSaveInsight} className="flex-1 py-3 bg-white text-primary rounded-xl font-black text-xs uppercase shadow-xl hover:bg-slate-100 transition-colors">ATUALIZAR TODOS</button>
-                    <button onClick={() => { setIsEditingInsight(false); setTempInsight(config.generalMessage || ''); }} className="px-4 py-3 bg-white/20 rounded-xl font-black text-xs uppercase hover:bg-white/30 transition-colors">Sair</button>
+                    <button onClick={handleSaveInsight} className="flex-1 py-3 bg-white text-primary rounded-xl font-black text-xs uppercase shadow-xl hover:bg-slate-100 transition-colors">ATUALIZAR MURAL</button>
+                    <button onClick={() => setIsEditingInsight(false)} className="px-4 py-3 bg-white/20 rounded-xl font-black text-xs uppercase hover:bg-white/30 transition-colors">Sair</button>
                   </div>
                 </div>
               ) : (

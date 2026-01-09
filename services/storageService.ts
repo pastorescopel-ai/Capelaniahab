@@ -57,16 +57,16 @@ export const storageService = {
         
         if (cloudData.config) {
             const currentLocal = this.getConfig();
-            // LÓGICA CORRIGIDA: Prioridade total para o que vem da planilha para Mural e Saudação
+            // PRIORIDADE ABSOLUTA PARA MURAL E SAUDAÇÃO DA NUVEM
+            // Isso garante que se o ADM mudou na planilha, muda para todos.
             const merged: CloudConfig = { 
               ...currentLocal, 
               ...cloudData.config,
-              // Se existir na nuvem (mesmo que string vazia), substitui o local
               dashboardGreeting: cloudData.config.dashboardGreeting !== undefined ? cloudData.config.dashboardGreeting : currentLocal.dashboardGreeting,
               generalMessage: cloudData.config.generalMessage !== undefined ? cloudData.config.generalMessage : currentLocal.generalMessage
             };
             
-            // Preservar logomarcas locais apenas se a nuvem não enviar nada (evitar reset de imagem base64)
+            // Preservar logos se a nuvem não enviar (evita quebra visual por strings longas)
             if (!cloudData.config.appLogo) merged.appLogo = currentLocal.appLogo;
             if (!cloudData.config.reportLogo) merged.reportLogo = currentLocal.reportLogo;
             
@@ -81,6 +81,7 @@ export const storageService = {
   async syncToCloud(type: string, data: any) {
     try {
       const user = this.getCurrentUser();
+      // Usamos text/plain para evitar problemas de CORS com Google Apps Script
       await fetch(INTERNAL_CLOUD_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -205,15 +206,23 @@ export const storageService = {
     if (!config.appLogo) config.appLogo = DEFAULT_APP_LOGO;
     if (!config.reportLogo) config.reportLogo = DEFAULT_REPORT_LOGO;
     
+    if (!config.reportTitle) config.reportTitle = 'Relatório de Atividades';
+    if (!config.reportSubtitle) config.reportSubtitle = 'Gestão de Capelania e Ensino Bíblico';
+    if (!config.reportTitleFontSize) config.reportTitleFontSize = '32';
+    if (!config.reportSubtitleFontSize) config.reportSubtitleFontSize = '14';
+    
     return config;
   },
   async saveConfig(config: CloudConfig) {
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-    // Sincroniza a configuração (incluindo Mural e Saudação) com a planilha
+    // Sincroniza textos da saudação e mural imediatamente com a nuvem
     await this.syncToCloud('CONFIGURACAO_SISTEMA', { 
-      ...config, 
-      appLogo: '', // Não enviamos imagem base64 para evitar estouro de célula na planilha
-      reportLogo: '' 
+      dashboardGreeting: config.dashboardGreeting,
+      generalMessage: config.generalMessage,
+      customSectors: config.customSectors,
+      customCollaborators: config.customCollaborators,
+      reportTitle: config.reportTitle,
+      reportSubtitle: config.reportSubtitle
     });
   },
   getRequests(): ChangeRequest[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]'); },
