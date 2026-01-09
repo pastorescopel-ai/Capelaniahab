@@ -22,7 +22,7 @@ const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
   const allRecords = storageService.getStudies();
   
   const myRecent = useMemo(() => {
-    return allRecords
+    return (allRecords || [])
       .filter((r: BiblicalStudy) => r.chaplainId === user.id)
       .sort((a: BiblicalStudy, b: BiblicalStudy) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5);
@@ -30,8 +30,10 @@ const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
   
   const existingNames = useMemo(() => {
     const names = new Set<string>();
-    allRecords.forEach((r: BiblicalStudy) => names.add(r.patientName));
-    storageService.getClasses().forEach((c: BiblicalClass) => c.students.forEach((s: string) => names.add(s)));
+    (allRecords || []).forEach((r: BiblicalStudy) => { if(r.patientName) names.add(r.patientName); });
+    (storageService.getClasses() || []).forEach((c: BiblicalClass) => {
+      if(c.students) c.students.forEach((s: string) => { if(s) names.add(s); });
+    });
     return Array.from(names).sort();
   }, [allRecords]);
 
@@ -66,10 +68,10 @@ const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
   return (
     <div className="space-y-6">
       <SyncOverlay isVisible={isSyncing} />
-      <form onSubmit={handleSave} className="bg-white p-8 rounded-premium shadow-xl space-y-6">
+      <form onSubmit={handleSave} className="bg-white p-8 rounded-premium shadow-xl space-y-6 text-slate-800">
         <h2 className="text-2xl font-black italic">📖 Novo Estudo Bíblico</h2>
         <div className="flex gap-4">
-          {['HAB', 'HABA'].map(u => (
+          {['HAB', 'HABA'].map((u: string) => (
             <button key={u} type="button" onClick={() => setUnit(u as HospitalUnit)} className={`flex-1 py-3 rounded-xl font-black transition-all ${unit === u ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>UNIDADE {u}</button>
           ))}
         </div>
@@ -77,10 +79,10 @@ const BiblicalStudyForm: React.FC<Props> = ({ user, onSuccess }) => {
           <input type="date" className="w-full p-4 bg-slate-50 border rounded-xl font-bold" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
           <SearchableSelect label="Setor" options={sectors} value={formData.sector} onChange={v => setFormData({...formData, sector: v})} />
           <input list="names" className="w-full p-4 bg-slate-50 border rounded-xl font-bold" value={formData.patientName} onChange={e => setFormData({...formData, patientName: e.target.value})} placeholder="Nome do Aluno..." />
-          <datalist id="names">{existingNames.map(n => <option key={n} value={n} />)}</datalist>
+          <datalist id="names">{existingNames.map((n: string) => <option key={n} value={n} />)}</datalist>
           <input className="w-full p-4 bg-slate-50 border rounded-xl font-bold" placeholder="WhatsApp" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} />
           <select className="w-full p-4 bg-slate-50 border rounded-xl font-bold" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
-            {STUDY_STATUSES.map(s => <option key={s}>{s}</option>)}
+            {STUDY_STATUSES.map((s: string) => <option key={s}>{s}</option>)}
           </select>
         </div>
         <button type="submit" className="w-full py-5 bg-primary text-white rounded-premium font-black shadow-xl">SALVAR REGISTRO</button>

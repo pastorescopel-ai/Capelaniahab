@@ -20,8 +20,8 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   const allSectors = useMemo(() => {
     const sectors = new Set<string>();
-    config.customSectorsHAB.forEach((s: string) => sectors.add(s));
-    config.customSectorsHABA.forEach((s: string) => sectors.add(s));
+    (config.customSectorsHAB || []).forEach((s: string) => sectors.add(s));
+    (config.customSectorsHABA || []).forEach((s: string) => sectors.add(s));
     return ['TODOS', ...Array.from(sectors).sort()];
   }, [config]);
 
@@ -45,21 +45,23 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   }, [startDate, endDate, selectedSector, allStudies, allClasses, allGroups, allVisits]);
 
   const stats = useMemo(() => {
-    const countUniqueStudents = (unit: HospitalUnit) => {
+    const countUniqueStudents = (unit: HospitalUnit): number => {
       const names = new Set<string>();
       
-      filtered.studies
+      (filtered.studies as BiblicalStudy[])
         .filter((s: BiblicalStudy) => s.hospitalUnit === unit)
         .forEach((s: BiblicalStudy) => {
           if (s.patientName) names.add(s.patientName.toLowerCase().trim());
         });
 
-      filtered.classes
+      (filtered.classes as BiblicalClass[])
         .filter((c: BiblicalClass) => c.hospitalUnit === unit)
         .forEach((c: BiblicalClass) => {
-          c.students.forEach((st: string) => {
-            if (st) names.add(st.toLowerCase().trim());
-          });
+          if (c.students && Array.isArray(c.students)) {
+            c.students.forEach((st: string) => {
+              if (st) names.add(st.toLowerCase().trim());
+            });
+          }
         });
         
       return names.size;
@@ -67,12 +69,12 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
     const countByUnit = (unit: HospitalUnit) => ({
       students: countUniqueStudents(unit),
-      pgs: filtered.groups.filter((g: SmallGroup) => g.hospitalUnit === unit).length,
-      visits: filtered.visits.filter((v: StaffVisit) => v.hospitalUnit === unit).length,
-      classes: filtered.classes.filter((c: BiblicalClass) => c.hospitalUnit === unit).length,
-      participantsInPGs: filtered.groups
+      pgs: (filtered.groups as SmallGroup[]).filter((g: SmallGroup) => g.hospitalUnit === unit).length,
+      visits: (filtered.visits as StaffVisit[]).filter((v: StaffVisit) => v.hospitalUnit === unit).length,
+      classes: (filtered.classes as BiblicalClass[]).filter((c: BiblicalClass) => c.hospitalUnit === unit).length,
+      participantsInPGs: (filtered.groups as SmallGroup[])
         .filter((g: SmallGroup) => g.hospitalUnit === unit)
-        .reduce((acc: number, curr: SmallGroup) => acc + (curr.participantsCount || 0), 0)
+        .reduce((acc: number, curr: SmallGroup) => acc + (Number(curr.participantsCount) || 0), 0)
     });
 
     return {
@@ -83,7 +85,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   const pgsBySector = useMemo(() => {
     const sectors: Record<string, number> = {};
-    filtered.groups.forEach((g: SmallGroup) => {
+    (filtered.groups as SmallGroup[]).forEach((g: SmallGroup) => {
       sectors[g.sector] = (sectors[g.sector] || 0) + 1;
     });
     return sectors;
@@ -146,7 +148,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   return (
     <div className="space-y-8 pb-24">
-      <div className="bg-white p-6 rounded-premium shadow-xl border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+      <div className="bg-white p-6 rounded-premium shadow-xl border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-6 items-end text-slate-800">
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Data Início</label>
           <input type="date" className="w-full p-3 bg-slate-50 border rounded-xl font-bold" value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -162,7 +164,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
             value={selectedSector}
             onChange={e => setSelectedSector(e.target.value)}
           >
-            {allSectors.map(s => <option key={s} value={s}>{s}</option>)}
+            {allSectors.map((s: string) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <button onClick={handlePrint} className="bg-primary text-white w-full py-4 rounded-xl font-black shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2">

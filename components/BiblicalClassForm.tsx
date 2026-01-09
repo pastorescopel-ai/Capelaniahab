@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { storageService } from '../services/storageService';
-import { BiblicalClass, User, HospitalUnit } from '../types';
+import { BiblicalClass, User, HospitalUnit, BiblicalStudy } from '../types';
 import { STUDY_GUIDES } from '../constants';
 import SearchableSelect from './SearchableSelect';
 import SyncOverlay from './SyncOverlay';
@@ -23,16 +23,18 @@ const BiblicalClassForm: React.FC<Props> = ({ user, onSuccess }) => {
   const allClasses = storageService.getClasses();
 
   const myRecent = useMemo(() => {
-    return allClasses
-      .filter(r => r.chaplainId === user.id)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    return (allClasses || [])
+      .filter((r: BiblicalClass) => r.chaplainId === user.id)
+      .sort((a: BiblicalClass, b: BiblicalClass) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5);
   }, [allClasses, user.id]);
 
   const existingNames = useMemo(() => {
     const names = new Set<string>();
-    storageService.getStudies().forEach(r => names.add(r.patientName));
-    allClasses.forEach(c => c.students.forEach(s => names.add(s)));
+    (storageService.getStudies() || []).forEach((r: BiblicalStudy) => { if(r.patientName) names.add(r.patientName); });
+    (allClasses || []).forEach((c: BiblicalClass) => {
+      if(c.students) c.students.forEach((s: string) => { if(s) names.add(s); });
+    });
     return Array.from(names).sort();
   }, [allClasses]);
 
@@ -76,10 +78,10 @@ const BiblicalClassForm: React.FC<Props> = ({ user, onSuccess }) => {
   return (
     <div className="space-y-6">
       <SyncOverlay isVisible={isSyncing} />
-      <form onSubmit={handleSave} className="bg-white p-8 rounded-premium shadow-xl space-y-6">
+      <form onSubmit={handleSave} className="bg-white p-8 rounded-premium shadow-xl space-y-6 text-slate-800">
         <h2 className="text-2xl font-black italic">🎓 Nova Classe Bíblica</h2>
         <div className="flex gap-4">
-          {['HAB', 'HABA'].map(u => (
+          {['HAB', 'HABA'].map((u: string) => (
             <button key={u} type="button" onClick={() => setUnit(u as any)} className={`flex-1 py-3 rounded-xl font-black transition-all ${unit === u ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>UNIDADE {u}</button>
           ))}
         </div>
@@ -93,11 +95,11 @@ const BiblicalClassForm: React.FC<Props> = ({ user, onSuccess }) => {
           <label className="text-[10px] font-black uppercase opacity-40">Adicionar Alunos (Busca ou Novo)</label>
           <div className="flex gap-2">
             <input list="all-students" className="flex-1 p-4 bg-white border rounded-xl font-bold" value={newStudent} onChange={e => setNewStudent(e.target.value)} placeholder="Nome do aluno..." />
-            <datalist id="all-students">{existingNames.map(n => <option key={n} value={n} />)}</datalist>
+            <datalist id="all-students">{existingNames.map((n: string) => <option key={n} value={n} />)}</datalist>
             <button type="button" onClick={addStudent} className="px-6 bg-success text-white rounded-xl font-black shadow-lg">➕</button>
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
-            {students.map((s, i) => (
+            {students.map((s: string, i: number) => (
               <span key={i} className="px-4 py-2 bg-white border shadow-sm rounded-full text-xs font-black text-slate-700 flex items-center gap-2">
                 {s} <button type="button" onClick={() => setStudents(students.filter((_, idx) => idx !== i))} className="text-danger">✕</button>
               </span>
@@ -107,7 +109,7 @@ const BiblicalClassForm: React.FC<Props> = ({ user, onSuccess }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <select className="p-4 bg-slate-50 border rounded-xl font-bold" value={formData.studySeries} onChange={e => setFormData({...formData, studySeries: e.target.value})}>
-            {STUDY_GUIDES.map(s => <option key={s}>{s}</option>)}
+            {STUDY_GUIDES.map((s: string) => <option key={s}>{s}</option>)}
           </select>
           <input className="p-4 bg-slate-50 border rounded-xl font-bold" placeholder="Lição / Tema" value={formData.currentLesson} onChange={e => setFormData({...formData, currentLesson: e.target.value})} />
         </div>
@@ -120,12 +122,12 @@ const BiblicalClassForm: React.FC<Props> = ({ user, onSuccess }) => {
           <span className="w-2 h-2 bg-primary rounded-full"></span> Últimas Classes Registradas
         </h3>
         <div className="space-y-3">
-          {myRecent.length > 0 ? myRecent.map(r => (
+          {myRecent.length > 0 ? myRecent.map((r: BiblicalClass) => (
             <div key={r.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-primary/30 transition-all">
               <div>
-                <p className="font-black text-slate-800">{r.students.length} Alunos Presentes</p>
+                <p className="font-black text-slate-800">{(r.students || []).length} Alunos Presentes</p>
                 <p className="text-[10px] font-bold text-primary uppercase">{r.sector} • {r.date.split('-').reverse().join('/')}</p>
-                <p className="text-[9px] text-slate-400 italic truncate max-w-[200px]">{r.students.join(', ')}</p>
+                <p className="text-[9px] text-slate-400 italic truncate max-w-[200px]">{(r.students || []).join(', ')}</p>
               </div>
               <button onClick={() => handleDelete(r.id)} className="p-2 text-danger hover:bg-danger/10 rounded-xl transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
