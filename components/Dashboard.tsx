@@ -43,12 +43,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setPendingVisits(visitsToReturn);
   }, [filteredData.v]);
 
+  // Total de Estudantes da Bíblia (Únicos): Soma de Estudos + Alunos da Classe
   const uniqueStudentsCount = useMemo(() => {
     const names = new Set<string>();
     filteredData.s.forEach(study => study.patientName && names.add(study.patientName.trim().toLowerCase()));
     filteredData.c.forEach(cls => cls.students.forEach(st => st && names.add(st.trim().toLowerCase())));
     return names.size;
   }, [filteredData]);
+
+  // Total de Classes Bíblicas (Únicas): Desconsidera repetições por continuidade (mesmo setor e alunos)
+  const uniqueClassesCount = useMemo(() => {
+    const classKeys = new Set<string>();
+    filteredData.c.forEach(c => {
+      const key = `${c.sector}-${[...c.students].sort().join(',')}`.toLowerCase();
+      classKeys.add(key);
+    });
+    return classKeys.size;
+  }, [filteredData.c]);
 
   const totalActivitiesCount = filteredData.s.length + filteredData.v.length + filteredData.c.length + filteredData.g.length;
 
@@ -138,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         {[
           { label: 'Meu Impacto', value: totalActivitiesCount, emoji: '📊', color: 'bg-primary/10 text-primary' },
           { label: 'Meus Alunos', value: uniqueStudentsCount, emoji: '👤', color: 'bg-amber-100 text-amber-600' },
-          { label: 'Minhas Classes', value: filteredData.c.length, emoji: '🎓', color: 'bg-purple-100 text-purple-600' },
+          { label: 'Minhas Classes', value: uniqueClassesCount, emoji: '🎓', color: 'bg-purple-100 text-purple-600' },
           { label: 'Meus Estudos', value: filteredData.s.length, emoji: '📖', color: 'bg-blue-50 text-blue-600' },
         ].map((stat) => (
           <div key={stat.label} className="bg-white p-6 rounded-premium border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-lg transition-all">

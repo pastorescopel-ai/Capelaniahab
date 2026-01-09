@@ -55,6 +55,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     storageService.pullFromCloud().then(() => loadFilteredData());
   }, [loadFilteredData]);
 
+  // Total de Estudantes Alcançados: Cada aluno de estudos e cada aluno das classes (Sem duplicatas)
   const uniqueStudentsTotal = useMemo(() => {
     const names = new Set<string>();
     data.studies.forEach(s => s.patientName && names.add(s.patientName.trim().toLowerCase()));
@@ -62,10 +63,20 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     return names.size;
   }, [data.studies, data.classes]);
 
+  // Total de Classes Bíblicas Únicas: Identifica classes por setor e lista de alunos para não repetir continuidade
+  const uniqueClassesTotal = useMemo(() => {
+    const classKeys = new Set<string>();
+    data.classes.forEach(c => {
+      const key = `${c.sector}-${[...c.students].sort().join(',')}`.toLowerCase();
+      classKeys.add(key);
+    });
+    return classKeys.size;
+  }, [data.classes]);
+
   // Dados para Gráfico de Distribuição Global
   const chartData = [
     { name: 'Estudos', value: data.studies.length, color: '#3b82f6' },
-    { name: 'Classes', value: data.classes.length, color: '#a855f7' },
+    { name: 'Classes', value: uniqueClassesTotal, color: '#a855f7' },
     { name: 'Grupos', value: data.groups.length, color: '#f97316' },
     { name: 'Visitas', value: data.visits.length, color: '#22c55e' }
   ].filter(d => d.value > 0);
@@ -78,16 +89,24 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
     return usersToMonitor.map(u => {
       const uStudies = data.studies.filter(s => s.chaplainId === u.id).length;
-      const uClasses = data.classes.filter(c => c.chaplainId === u.id).length;
+      const uClassesList = data.classes.filter(c => c.chaplainId === u.id);
+      
+      const uUniqueClassesKeys = new Set<string>();
+      uClassesList.forEach(c => {
+        const key = `${c.sector}-${[...c.students].sort().join(',')}`.toLowerCase();
+        uUniqueClassesKeys.add(key);
+      });
+      const uUniqueClassesCount = uUniqueClassesKeys.size;
+
       const uGroups = data.groups.filter(g => g.chaplainId === u.id).length;
       const uVisits = data.visits.filter(v => v.chaplainId === u.id).length;
-      const total = uStudies + uClasses + uGroups + uVisits;
+      const total = uStudies + uUniqueClassesCount + uGroups + uVisits;
 
       return { 
         user: u, 
         metrics: [
           { label: 'Estudos', val: uStudies, icon: '📖', color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Classes', val: uClasses, icon: '🎓', color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'Classes', val: uUniqueClassesCount, icon: '🎓', color: 'text-purple-600', bg: 'bg-purple-50' },
           { label: 'Grupos', val: uGroups, icon: '🏠', color: 'text-orange-600', bg: 'bg-orange-50' },
           { label: 'Visitas', val: uVisits, icon: '🤝', color: 'text-green-600', bg: 'bg-green-50' }
         ],
@@ -149,7 +168,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         <div className="grid grid-cols-4 gap-4 mb-10">
           {[
             { label: 'Estudos Bíblicos', val: data.studies.length, bg: 'bg-blue-50', color: 'text-blue-600' },
-            { label: 'Classes Bíblicas', val: data.classes.length, bg: 'bg-purple-50', color: 'text-purple-600' },
+            { label: 'Classes Bíblicas', val: uniqueClassesTotal, bg: 'bg-purple-50', color: 'text-purple-600' },
             { label: 'Pequenos Grupos', val: data.groups.length, bg: 'bg-orange-50', color: 'text-orange-600' },
             { label: 'Visitas Colaborador', val: data.visits.length, bg: 'bg-green-50', color: 'text-green-600' }
           ].map((c, i) => (
@@ -263,7 +282,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           </div>
           {[
             { label: 'Estudos Bíblicos', val: data.studies.length, color: 'text-blue-600', icon: '📖' },
-            { label: 'Classes Bíblicas', val: data.classes.length, color: 'text-purple-600', icon: '🎓' },
+            { label: 'Classes Bíblicas', val: uniqueClassesTotal, color: 'text-purple-600', icon: '🎓' },
             { label: 'Pequenos Grupos', val: data.groups.length, color: 'text-orange-600', icon: '🏠' },
             { label: 'Apoio Colaborador', val: data.visits.length, color: 'text-green-600', icon: '🤝' }
           ].map((item, idx) => (
