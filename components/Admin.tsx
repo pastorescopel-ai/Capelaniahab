@@ -73,18 +73,18 @@ const Admin: React.FC = () => {
 
         <div className="bg-white p-8 rounded-premium shadow-xl space-y-6">
           <h3 className="text-lg font-black text-success border-b pb-2">👥 EQUIPE</h3>
-          <textarea className="w-full h-44 p-4 bg-slate-50 border rounded-xl font-bold" value={collabs} onChange={e => setCollabs(e.target.value)} placeholder="Nomes (um por linha)" />
+          <textarea className="w-full h-44 p-4 bg-slate-50 border rounded-xl font-bold" value={collabs} onChange={e => setCollabs(e.target.value)} placeholder="Nomes da Equipe (um por linha)" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white p-8 rounded-premium shadow-xl space-y-4">
           <h3 className="font-black text-primary uppercase">Setores Cadastrados</h3>
-          <textarea className="w-full h-40 p-4 bg-slate-50 border rounded-xl font-bold" value={sectors} onChange={e => setSectors(e.target.value)} placeholder="Um por linha..." />
+          <textarea className="w-full h-40 p-4 bg-slate-50 border rounded-xl font-bold" value={sectors} onChange={e => setSectors(e.target.value)} placeholder="Setores (um por linha)..." />
         </div>
         <div className="bg-white p-8 rounded-premium shadow-xl space-y-4">
           <h3 className="font-black text-orange-500 uppercase">Pequenos Grupos</h3>
-          <textarea className="w-full h-40 p-4 bg-slate-50 border rounded-xl font-bold" value={pgs} onChange={e => setPgs(e.target.value)} placeholder="Um por linha..." />
+          <textarea className="w-full h-40 p-4 bg-slate-50 border rounded-xl font-bold" value={pgs} onChange={e => setPgs(e.target.value)} placeholder="Nomes dos PGs (um por linha)..." />
         </div>
       </div>
     </div>

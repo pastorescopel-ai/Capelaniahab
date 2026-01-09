@@ -131,7 +131,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       </div>
 
       <div className="bg-primary text-white p-10 rounded-premium shadow-2xl relative overflow-hidden group">
-         <p className="text-xs font-black uppercase opacity-60 tracking-widest mb-2">Impacto no Período (Alunos Únicos)</p>
+         <p className="text-xs font-black uppercase opacity-60 tracking-widest mb-2">Total de Impacto (Alunos Únicos)</p>
          <h2 className="text-7xl font-black tracking-tighter">{stats.uniqueStudents}</h2>
       </div>
     </div>

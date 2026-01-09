@@ -159,7 +159,7 @@ export const storageService = {
       customPGs: [], 
       customCollaborators: [],
       reportTitle: 'RELATÓRIO MENSAL DE ATIVIDADES', 
-      reportSubtitle: 'CAPELANIA HOSPITALAR - HAB/HABA'
+      reportSubtitle: 'CAPELANIA HOSPITALAR'
     };
     return stored ? JSON.parse(stored) : def;
   },
