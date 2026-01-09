@@ -31,13 +31,13 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ label, options, val
 
   return (
     <div className="space-y-1 relative" ref={wrapperRef}>
-      <label className="text-[11px] md:text-[10px] font-black text-slate-500 md:text-slate-400 uppercase tracking-widest ml-1">
+      <label className="text-sm font-black text-slate-700 md:text-slate-400 uppercase tracking-widest ml-1">
         {label} {required && '*'}
       </label>
       
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer flex justify-between items-center group hover:border-primary/30 transition-all"
+        className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer flex justify-between items-center hover:border-primary/30 transition-all"
       >
         <span className={`font-bold ${value ? 'text-slate-800' : 'text-slate-400 italic'}`}>
           {value || placeholder || 'Selecione...'}
@@ -48,13 +48,13 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ label, options, val
       </div>
 
       {isOpen && (
-        <div className="absolute z-[100] top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute z-[100] top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
           <div className="p-3 border-b border-slate-100 sticky top-0 bg-white">
             <input 
               type="text"
               autoFocus
               className="w-full p-3 bg-slate-50 rounded-xl outline-none font-bold text-sm"
-              placeholder="Buscar..."
+              placeholder="Digite para buscar..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               onClick={e => e.stopPropagation()}
@@ -76,7 +76,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ label, options, val
                 </div>
               ))
             ) : (
-              <div className="px-6 py-8 text-center text-slate-400 italic text-xs">Nenhum resultado encontrado.</div>
+              <div className="px-6 py-8 text-center text-slate-400 italic text-xs">Nenhum resultado.</div>
             )}
           </div>
         </div>

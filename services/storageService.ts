@@ -43,16 +43,12 @@ export const storageService = {
       if (!response.ok) return false;
       const cloudData = await response.json();
       if (cloudData) {
-        // Sincronizar Lista Global de Usuários
         if (cloudData.users) {
           const cloudUsers: User[] = cloudData.users;
           if (!cloudUsers.find(u => u.email === MASTER_ADMIN.email)) {
             cloudUsers.push(MASTER_ADMIN);
           }
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cloudUsers));
-          
-          // PERSISTÊNCIA DE PERFIL:
-          // Atualiza o usuário logado localmente com os dados mais recentes da planilha
           const currentUser = this.getCurrentUser();
           if (currentUser) {
             const updatedProfile = cloudUsers.find(u => u.id === currentUser.id);
@@ -72,13 +68,11 @@ export const storageService = {
             const merged: CloudConfig = { 
               ...currentLocal, 
               ...cloudData.config,
-              dashboardGreeting: cloudData.config.dashboardGreeting !== undefined ? cloudData.config.dashboardGreeting : currentLocal.dashboardGreeting,
-              generalMessage: cloudData.config.generalMessage !== undefined ? cloudData.config.generalMessage : currentLocal.generalMessage
+              customSectorsHAB: cloudData.config.customSectorsHAB || currentLocal.customSectorsHAB || [],
+              customSectorsHABA: cloudData.config.customSectorsHABA || currentLocal.customSectorsHABA || [],
+              customPGsHAB: cloudData.config.customPGsHAB || currentLocal.customPGsHAB || [],
+              customPGsHABA: cloudData.config.customPGsHABA || currentLocal.customPGsHABA || [],
             };
-            
-            if (!cloudData.config.appLogo) merged.appLogo = currentLocal.appLogo;
-            if (!cloudData.config.reportLogo) merged.reportLogo = currentLocal.reportLogo;
-            
             localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(merged));
         }
         return true;
@@ -153,9 +147,7 @@ export const storageService = {
   },
   getUsers(): User[] { 
     const stored = localStorage.getItem(STORAGE_KEYS.USERS);
-    const users = stored ? JSON.parse(stored) : [MASTER_ADMIN];
-    if (!users.find((u: User) => u.email === MASTER_ADMIN.email)) users.push(MASTER_ADMIN);
-    return users;
+    return stored ? JSON.parse(stored) : [MASTER_ADMIN];
   },
   async saveUser(user: User) {
     const users = this.getUsers();
@@ -184,7 +176,6 @@ export const storageService = {
     const index = data.findIndex(i => i.id === cls.id);
     if (index >= 0) data[index] = cls; else data.push(cls);
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(data));
-    await this.syncToCloud('DELETE_CLASS', { id: cls.id });
     await this.syncToCloud('CLASSES_BIBLICAS', cls);
   },
   getGroups(): SmallGroup[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.GROUPS) || '[]'); },
@@ -208,29 +199,19 @@ export const storageService = {
     const config: CloudConfig = stored ? JSON.parse(stored) : {
         databaseURL: INTERNAL_CLOUD_URL,
         spreadsheetId: '',
-        customSectors: [],
+        customSectorsHAB: [],
+        customSectorsHABA: [],
+        customPGsHAB: [],
+        customPGsHABA: [],
         customCollaborators: []
     };
-    
     if (!config.appLogo) config.appLogo = DEFAULT_APP_LOGO;
     if (!config.reportLogo) config.reportLogo = DEFAULT_REPORT_LOGO;
-    if (!config.reportTitle) config.reportTitle = 'Relatório de Atividades';
-    if (!config.reportSubtitle) config.reportSubtitle = 'Gestão de Capelania e Ensino Bíblico';
-    if (!config.reportTitleFontSize) config.reportTitleFontSize = '32';
-    if (!config.reportSubtitleFontSize) config.reportSubtitleFontSize = '14';
-    
     return config;
   },
   async saveConfig(config: CloudConfig) {
     localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-    await this.syncToCloud('CONFIGURACAO_SISTEMA', { 
-      dashboardGreeting: config.dashboardGreeting,
-      generalMessage: config.generalMessage,
-      customSectors: config.customSectors,
-      customCollaborators: config.customCollaborators,
-      reportTitle: config.reportTitle,
-      reportSubtitle: config.reportSubtitle
-    });
+    await this.syncToCloud('CONFIGURACAO_SISTEMA', config);
   },
   getRequests(): ChangeRequest[] { return JSON.parse(localStorage.getItem(STORAGE_KEYS.REQUESTS) || '[]'); },
   async addRequest(request: ChangeRequest) {
@@ -238,13 +219,5 @@ export const storageService = {
     reqs.push(request);
     localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(reqs));
     await this.syncToCloud('SOLICITACAO_ALTERACAO', request);
-  },
-  async updateRequestStatus(id: string, status: 'APPROVED' | 'REJECTED') {
-    const reqs = this.getRequests();
-    const idx = reqs.findIndex(r => r.id === id);
-    if (idx >= 0) {
-      reqs[idx].status = status;
-      localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(reqs));
-    }
   }
 };
