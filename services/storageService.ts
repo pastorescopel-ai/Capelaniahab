@@ -36,7 +36,7 @@ export const storageService = {
 
   async pullFromCloud(): Promise<boolean> {
     try {
-      const response = await fetch(`${INTERNAL_CLOUD_URL}?action=fetchAll`);
+      const response = await fetch(INTERNAL_CLOUD_URL);
       if (!response.ok) return false;
       const cloudData = await response.json();
       if (cloudData) {

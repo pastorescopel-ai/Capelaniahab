@@ -20,9 +20,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   const allSectors = useMemo(() => {
     const sectors = new Set<string>();
-    if (config.customSectors) {
-      config.customSectors.forEach((s: string) => sectors.add(s));
-    }
+    (config.customSectors || []).forEach((s: string) => sectors.add(s));
     return ['TODOS', ...Array.from(sectors).sort()];
   }, [config]);
 
