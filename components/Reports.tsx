@@ -20,7 +20,9 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   const allSectors = useMemo(() => {
     const sectors = new Set<string>();
-    (config.customSectors || []).forEach((s: string) => sectors.add(s));
+    if (config.customSectors) {
+      config.customSectors.forEach((s: string) => sectors.add(s));
+    }
     return ['TODOS', ...Array.from(sectors).sort()];
   }, [config]);
 
@@ -70,7 +72,9 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const pgsBySector = useMemo(() => {
     const sectors: Record<string, number> = {};
     (filtered.groups as SmallGroup[]).forEach((g: SmallGroup) => {
-      sectors[g.sector] = (sectors[g.sector] || 0) + 1;
+      if (g.sector) {
+        sectors[g.sector] = (sectors[g.sector] || 0) + 1;
+      }
     });
     return sectors;
   }, [filtered.groups]);
@@ -84,8 +88,8 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid #005a9c; padding-bottom: 20px;">
           <img src="${config.reportLogo || ''}" style="height: 80px;" />
           <div style="text-align: right;">
-            <h1 style="margin: 0; color: #005a9c;">${config.reportTitle}</h1>
-            <p style="margin: 0; font-weight: bold;">${config.reportSubtitle}</p>
+            <h1 style="margin: 0; color: #005a9c;">${config.reportTitle || 'RELATÓRIO'}</h1>
+            <p style="margin: 0; font-weight: bold;">${config.reportSubtitle || ''}</p>
             <p style="margin: 0;">Período: ${startDate} a ${endDate}</p>
           </div>
         </div>

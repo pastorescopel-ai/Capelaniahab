@@ -5,7 +5,6 @@ export const getChaplaincyInsights = async (dataSummary: string) => {
   const FALLBACK_MSG = "A capelania é luz nos momentos de dor. O trabalho realizado em cada setor faz a diferença na vida dos pacientes e colaboradores. Siga em frente com fé!";
 
   try {
-    // Initialization using the mandatory process.env.API_KEY directly as per guidelines
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const response = await ai.models.generateContent({
@@ -23,7 +22,7 @@ export const getChaplaincyInsights = async (dataSummary: string) => {
     return FALLBACK_MSG;
 
   } catch (error: any) {
-    console.warn("Gemini API indisponível ou cota excedida. Usando mensagem offline.");
+    console.warn("Gemini API indisponível ou cota excedida.");
     return FALLBACK_MSG;
   }
 };

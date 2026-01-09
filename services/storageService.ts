@@ -1,6 +1,5 @@
 
 import { BiblicalStudy, BiblicalClass, SmallGroup, StaffVisit, User, UserRole, CloudConfig } from '../types';
-import { DEFAULT_APP_LOGO, DEFAULT_REPORT_LOGO } from '../constants';
 
 const INTERNAL_CLOUD_URL = "https://script.google.com/macros/s/AKfycbyrXCpJxxbzTxz7dGXRM_uv9edvM_SgE-xYHiXaF8GUghDbxyNTR_1xpS3LhEulFXa5/exec"; 
 
@@ -50,7 +49,10 @@ export const storageService = {
         if (cloudData.classes) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudData.classes));
         if (cloudData.groups) localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(cloudData.groups));
         if (cloudData.visits) localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(cloudData.visits));
-        if (cloudData.config) localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify({ ...this.getConfig(), ...cloudData.config }));
+        if (cloudData.config) {
+          const current = this.getConfig();
+          localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify({ ...current, ...cloudData.config }));
+        }
         return true;
       }
       return false;
@@ -150,7 +152,6 @@ export const storageService = {
 
   getConfig(): CloudConfig {
     const stored = localStorage.getItem(STORAGE_KEYS.CONFIG);
-    // Fix: Object literal updated to match CloudConfig interface and remove deprecated properties
     const def: CloudConfig = {
       databaseURL: INTERNAL_CLOUD_URL, 
       spreadsheetId: '',
